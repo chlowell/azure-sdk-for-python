@@ -15,9 +15,9 @@ from azure.core.exceptions import ClientRequestError
 
 from msrest import Serializer, Deserializer
 
-from ._models import Secret, SecretAttributesPaged, SecretAttributes, _SecretManagementAttributes
+from ._models import DeletedSecret, DeletedSecretPaged, Secret, SecretAttributesPaged, SecretAttributes
 
-from .._internal import _BackupResult
+from .._internal import _BackupResult, _SecretManagementAttributes
 
 
 class BearerTokenCredentialPolicy(HTTPPolicy):
@@ -301,14 +301,10 @@ class SecretClient:
         pass
 
     def list_deleted_secrets(self, max_page_size=None, **kwargs):
-<<<<<<< HEAD
-        pass
-=======
         # type: (Optional[int], Mapping[str, Any]) -> DeletedSecretPaged
         url = "{}/deletedsecrets".format(self.vault_url)
         paging = functools.partial(self._internal_paging, url, max_page_size)
         return DeletedSecretPaged(paging, self._deserialize.dependencies)
->>>>>>> remove redundant paging code
 
     def purge_deleted_secret(self, name, **kwargs):
         pass
