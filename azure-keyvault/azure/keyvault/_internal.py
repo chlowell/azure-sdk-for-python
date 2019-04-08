@@ -13,7 +13,13 @@ except ImportError:
     import urlparse as parse  # pylint: disable=import-error
 
 from collections import namedtuple
+import platform
+from .version import VERSION
 
+# TODO: have we standardized this?
+_USER_AGENT_STRING = "azsdk-python-keyvault/{} ({} {}; {})".format(
+    VERSION, platform.python_implementation(), platform.python_version(), platform.platform()
+)
 
 _VaultId = namedtuple('VaultId', ['vault_url', 'collection', 'name', 'version'])
 
