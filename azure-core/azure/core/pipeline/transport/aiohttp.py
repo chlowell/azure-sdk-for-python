@@ -109,7 +109,7 @@ class AioHttpTransportResponse(AsyncHttpResponse):
     def body(self) -> bytes:
         """Return the whole body as bytes in memory.
         """
-        if not self._body:
+        if self._body == None:
             raise ValueError("Body is not available. Call async method load_body, or do your call with stream=False.")
         return self._body
 
