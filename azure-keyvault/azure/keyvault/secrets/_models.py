@@ -49,8 +49,6 @@ class SecretAttributes(Model):
             self._vault_id = _parse_vault_id(self.id)
         self.content_type = kwargs.get('content_type', None)
         self._management_attributes = kwargs.get('_management_attributes', None)
-        if not self._management_attributes:
-            self._management_attributes = _SecretManagementAttributes(**kwargs)
         self.tags = kwargs.get('tags', None)
         self.key_id = None
         self.managed = None
@@ -129,11 +127,6 @@ class Secret(SecretAttributes):
      this is a secret backing a certificate, then managed will be true.
     """
 
-    _validation = {
-        'key_id': {'readonly': True},
-        'managed': {'readonly': True},
-    }
-
     # i.e., Secret is SecretAttributes plus a value
     _attribute_map = dict({
         'value': {'key': 'value', 'type': 'str'}
@@ -188,28 +181,40 @@ class DeletedSecret(SecretAttributes):
     :vartype deleted_date: datetime
     """
 
-    _validation = {
-        'kid': {'readonly': True},
-        'managed': {'readonly': True},
+    _validation = dict(
+        {
         'scheduled_purge_date': {'readonly': True},
         'deleted_date': {'readonly': True},
-    }
+        },
+        **SecretAttributes._validation
+    )
 
-    _attribute_map = {
-        'id': {'key': 'id', 'type': 'str'},
-        'content_type': {'key': 'contentType', 'type': 'str'},
-        'attributes': {'key': 'attributes', 'type': '_SecretManagementAttributes'},
-        'tags': {'key': 'tags', 'type': '{str}'},
-        'key_id': {'key': 'kid', 'type': 'str'},
-        'managed': {'key': 'managed', 'type': 'bool'},
-        'recovery_id': {'key': 'recoveryId', 'type': 'str'},
-        'scheduled_purge_date': {'key': 'scheduledPurgeDate', 'type': 'unix-time'},
-        'deleted_date': {'key': 'deletedDate', 'type': 'unix-time'},
-    }
+    # DeletedSecret is SecretAttributes plus deletion info
+    _attribute_map = dict(
+        {
+            "recovery_id": {"key": "recoveryId", "type": "str"},
+            "scheduled_purge_date": {"key": "scheduledPurgeDate", "type": "unix-time"},
+            "deleted_date": {"key": "deletedDate", "type": "unix-time"},
+        },
+        **SecretAttributes._attribute_map
+    )
 
     def __init__(self, **kwargs):
         # type: (Mapping[str, Any]) -> None
         super(DeletedSecret, self).__init__(**kwargs)
         self.recovery_id = kwargs.get('recovery_id', None)
-        # self.scheduled_purge_date = None
-        # self.deleted_date = None
+        self.scheduled_purge_date = None
+        self.deleted_date = None
+
+
+class DeletedSecretPaged(Paged):
+    """A paging container for iterating over a list of :class:`DeletedSecret <azure.keyvault.secrets.DeletedSecret>` objects
+    """
+
+    _attribute_map = {
+        "next_link": {"key": "nextLink", "type": "str"},
+        "current_page": {"key": "value", "type": "[DeletedSecret]"},
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(DeletedSecretPaged, self).__init__(*args, **kwargs)
