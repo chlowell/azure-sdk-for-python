@@ -2,13 +2,13 @@ from devtools_testutils import AzureMgmtTestCase, ResourceGroupPreparer
 from keyvault_preparer import KeyVaultPreparer
 from keyvault_testcase import KeyvaultTestCase
 from azure.keyvault import VaultClient
+from azure.core.exceptions import ClientRequestError
 
 import copy
 from dateutil import parser as date_parse
 import time
 import unittest
 
-import pytest
 
 class KeyVaultSecretTest(KeyvaultTestCase):
 
@@ -82,14 +82,16 @@ class KeyVaultSecretTest(KeyvaultTestCase):
         # delete secret
         client.secrets.delete_secret(secret_bundle.name)
 
-        # get secret returns not found
-        try:
+        # TestCase.assertRaisesRegexp was deprecated in 3.2
+        if hasattr(self, "assertRaisesRegex"):
+            assertRaises = self.assertRaisesRegex
+        else:
+            assertRaises = self.assertRaisesRegexp
+
+        # deleted secret isn't found
+        with assertRaises(ClientRequestError, r"not found"):
             client.secrets.get_secret(secret_bundle.name, '')
-        except Exception as ex:
-            # TODO ClientRequestError doesn't surface message
-            pass
-            # if not hasattr(ex, 'message') or 'not found' not in ex.message.lower():
-            #     raise ex
+
 
     @ResourceGroupPreparer()
     @KeyVaultPreparer()
@@ -135,7 +137,7 @@ class KeyVaultSecretTest(KeyvaultTestCase):
         expected = {}
 
         # create many secret versions
-        for x in range(0, max_secrets):
+        for _ in range(0, max_secrets):
             secret_bundle = None
             error_count = 0
             while not secret_bundle:
