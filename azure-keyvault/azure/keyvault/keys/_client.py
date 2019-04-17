@@ -74,7 +74,7 @@ class KeyClient:
             BearerTokenCredentialPolicy(credentials),
             config.redirect,
             config.retry,
-            config.logging,
+            # config.logging,
         ]
         self._pipeline = Pipeline(transport, policies=policies)
         models = {
@@ -123,11 +123,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
 
         key = self._deserialize("Key", response)
 
@@ -141,11 +137,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
         deleted_key = self._deserialize("DeletedKey", response)
 
         return deleted_key
@@ -190,11 +182,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
         deleted_key = self._deserialize("DeletedKey", response)
 
         return deleted_key
@@ -226,11 +214,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 204:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
 
         return
 
@@ -243,11 +227,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
 
         key = self._deserialize("Key", response)
 
@@ -272,11 +252,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
         key = self._deserialize("Key", response)
 
         return key
@@ -299,11 +275,7 @@ class KeyClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(
-                "Request failed with code {}: '{}'".format(
-                    response.status_code, response.text()
-                )
-            )
+            raise ClientRequestError(response)
 
         return response
 

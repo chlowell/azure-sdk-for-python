@@ -65,14 +65,14 @@ class SecretClient:
 
         self._vault_url = vault_url
         config = config or SecretClient.create_config(**kwargs)
-        transport = RequestsTransport(config.connection)
+        transport = RequestsTransport(config)
         policies = [
             config.user_agent,
             config.headers,
             _BearerTokenCredentialPolicy(credentials),
             config.redirect,
             config.retry,
-            config.logging,
+            # config.logging,
         ]
         self._pipeline = Pipeline(transport, policies=policies)
 
@@ -110,7 +110,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError('Request failed status code {}.  {}'.format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -159,7 +159,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError('Request failed status code {}.  {}'.format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -189,7 +189,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError('Request failed status code {}.  {}'.format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -270,7 +270,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError('Request failed status code {}.  {}'.format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         result = DESERIALIZE('BackupSecretResult', response)
 
@@ -307,7 +307,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError('Request failed status code {}.  {}'.format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -335,7 +335,7 @@ class SecretClient:
         request.format_parameters({'api-version': self._api_version})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('DeletedSecretBundle', response)
 
@@ -357,7 +357,7 @@ class SecretClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 204:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
+            raise ClientRequestError(response)
         return
 
     def recover_deleted_secret(self, name, **kwargs):
@@ -369,7 +369,7 @@ class SecretClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -393,6 +393,6 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
+            raise ClientRequestError(response)
 
         return response
