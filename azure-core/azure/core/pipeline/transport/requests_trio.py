@@ -34,12 +34,19 @@ import requests
 from requests.models import CONTENT_CHUNK_SIZE
 
 from .base import HttpRequest
-from .base_async import AsyncHttpTransport, AsyncHttpResponse
+from .base_async import (
+    AsyncHttpTransport,
+    AsyncHttpResponse,
+    _ResponseStopIteration,
+    _iterate_response_content)
 from .requests_basic import RequestsTransport, RequestsTransportResponse
-from .requests_asyncio import _ResponseStopIteration, _iterate_response_content
 from azure.core.exceptions import (
-    ClientRequestError,
-    raise_with_traceback)
+    ServiceRequestError,
+    ServiceResponseError,
+    ConnectError,
+    ReadTimeoutError,
+    raise_with_traceback
+)
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -49,11 +56,14 @@ import trio
 
 class TrioStreamDownloadGenerator(AsyncIterator):
 
-    def __init__(self, response: requests.Response, user_callback: Optional[Callable] = None, block: Optional[int] = None) -> None:
+    def __init__(self, response: requests.Response, block_size: int) -> None:
         self.response = response
-        self.block = block or CONTENT_CHUNK_SIZE
-        self.user_callback = user_callback
-        self.iter_content_func = self.response.iter_content(self.block)
+        self.block_size = block_size
+        self.iter_content_func = self.response.iter_content(self.block_size)
+        self.content_length = int(response.headers.get('Content-Length', 0))
+
+    def __len__(self):
+        return self.content_length
 
     async def __anext__(self):
         try:
@@ -63,8 +73,6 @@ class TrioStreamDownloadGenerator(AsyncIterator):
             )
             if not chunk:
                 raise _ResponseStopIteration()
-            if self.user_callback and callable(self.user_callback):
-                self.user_callback(chunk, self.response)
             return chunk
         except _ResponseStopIteration:
             self.response.close()
@@ -76,17 +84,13 @@ class TrioStreamDownloadGenerator(AsyncIterator):
 
 class TrioRequestsTransportResponse(AsyncHttpResponse, RequestsTransportResponse):
 
-    def stream_download(self, chunk_size: Optional[int] = None, callback: Optional[Callable] = None) -> AsyncIteratorType[bytes]:
+    def stream_download(self) -> AsyncIteratorType[bytes]:
         """Generator for streaming request body data.
 
         :param callback: Custom callback for monitoring progress.
         :param int chunk_size:
         """
-        return TrioStreamDownloadGenerator(
-            self.internal_response,
-            callback,
-            chunk_size
-        )
+        return TrioStreamDownloadGenerator(self.internal_response, self.block_size)
 
 
 class TrioRequestsTransport(RequestsTransport, AsyncHttpTransport):  # type: ignore
@@ -125,14 +129,14 @@ class TrioRequestsTransport(RequestsTransport, AsyncHttpTransport):  # type: ign
                 limiter=trio_limiter)
 
         except urllib3.exceptions.NewConnectionError as err:
-            error = ConnectionError(err, error=err)
+            error = ConnectError(err, error=err)
         except requests.exceptions.ReadTimeout as err:
             error = ReadTimeoutError(err, error=err)
         except requests.exceptions.ConnectionError as err:
             if err.args and isinstance(err.args[0], urllib3.exceptions.ProtocolError):
-                error = ConnectionReadError(err, error=err)
+                error = ServiceResponseError(err, error=err)
             else:
-                error = ConnectionError(err, error=err)
+                error = ConnectError(err, error=err)
         except requests.RequestException as err:
             error = ServiceRequestError(err, error=err)
         finally:
@@ -141,4 +145,4 @@ class TrioRequestsTransport(RequestsTransport, AsyncHttpTransport):  # type: ign
         if error:
             raise error
 
-        return TrioRequestsTransportResponse(request, response)
+        return TrioRequestsTransportResponse(request, response, self.config.connection.data_block_size)

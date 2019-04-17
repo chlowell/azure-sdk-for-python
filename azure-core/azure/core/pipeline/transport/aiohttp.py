@@ -35,9 +35,10 @@ CONTENT_CHUNK_SIZE = 10 * 1024
 
 
 class AioHttpContext(object):
-    def __init__(self, session, transport):
+    def __init__(self, session, transport, **kwargs):
         self.session = session
         self.transport = transport
+        self.options = kwargs
 
 
 class AioHttpTransport(AsyncHttpTransport):
@@ -59,12 +60,9 @@ class AioHttpTransport(AsyncHttpTransport):
     def _init_session(self, session):
         pass  # configure sesison
 
-    def build_context(self):
+    def build_context(self, **kwargs):
         # type: () -> AioHttpContext
-        return AioHttpContext(
-            session=self.session,
-            transport=self,
-        )
+        return AioHttpContext(session=self.session, transport=self, **kwargs)
 
     async def send(self, request: HttpRequest, **config: Any) -> AsyncHttpResponse:
         """Send the request using this HTTP sender.
@@ -78,6 +76,7 @@ class AioHttpTransport(AsyncHttpTransport):
         #    import ssl
          #   ssl_ctx = ssl.create_default_context(cafile=self.config.connection.verify)
 
+        stream_response = config.pop("stream", False)
         result = await self.session.request(
             request.method,
             request.url,
@@ -90,16 +89,16 @@ class AioHttpTransport(AsyncHttpTransport):
             allow_redirects=False,
             **config
         )
-        response = AioHttpTransportResponse(request, result)
-        if not config.get("stream", False):
+        response = AioHttpTransportResponse(request, result, self.config.connection.data_block_size)
+        if not stream_response:
             await response.load_body()
         return response
 
 
 class AioHttpTransportResponse(AsyncHttpResponse):
 
-    def __init__(self, request: HttpRequest, aiohttp_response: aiohttp.ClientResponse) -> None:
-        super(AioHttpTransportResponse, self).__init__(request, aiohttp_response)
+    def __init__(self, request: HttpRequest, aiohttp_response: aiohttp.ClientResponse, blob_size: int) -> None:
+        super(AioHttpTransportResponse, self).__init__(request, aiohttp_response, blob_size)
         # https://aiohttp.readthedocs.io/en/stable/client_reference.html#aiohttp.ClientResponse
         self.status_code = aiohttp_response.status
         self.headers = aiohttp_response.headers
@@ -109,7 +108,7 @@ class AioHttpTransportResponse(AsyncHttpResponse):
     def body(self) -> bytes:
         """Return the whole body as bytes in memory.
         """
-        if self._body == None:
+        if self._body is None:
             raise ValueError("Body is not available. Call async method load_body, or do your call with stream=False.")
         return self._body
 

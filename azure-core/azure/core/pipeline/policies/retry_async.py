@@ -37,7 +37,7 @@ from .base import HTTPPolicy
 from .base_async import AsyncHTTPPolicy
 from .retry import RetryPolicy
 
-from azure.core.exceptions import ServiceRequestError
+from azure.core.exceptions import AzureError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,20 +73,20 @@ class AsyncRetryPolicy(RetryPolicy, AsyncHTTPPolicy):
                 return
         await self._sleep_backoff(settings, transport)
 
-    async def send(self, request, **kwargs):
+    async def send(self, request):
         retries_remaining = True
         response = None
-        retry_settings = self.configure_retries(**kwargs)
+        retry_settings = self.configure_retries(request.context.options)
         while retries_remaining:
             try:
-                response = await self.next.send(request, **kwargs)
+                response = await self.next.send(request)
                 if self.is_retry(retry_settings, response):
                     retries_remaining = self.increment(retry_settings, response=response)
                     if retries_remaining:
                         await self.sleep(retry_settings, request.context.transport, response=response)
                         continue
                 return response
-            except ServiceRequestError as err:
+            except AzureError as err:
                 if self._is_method_retryable(retry_settings, request.http_request):
                     retries_remaining = self.increment(retry_settings, response=request, error=err)
                     if retries_remaining:

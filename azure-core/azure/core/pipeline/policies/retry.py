@@ -36,9 +36,11 @@ from typing import TYPE_CHECKING, List, Callable, Iterator, Any, Union, Dict, Op
 import warnings
 
 from azure.core.exceptions import (
+    AzureError,
     ServiceRequestError,
-    ConnectionError,
-    ConnectionReadError
+    ServiceResponseError,
+    ConnectError,
+    HttpRequestError
 )
 
 from .base import HTTPPolicy, RequestHistory
@@ -89,15 +91,15 @@ class RetryPolicy(HTTPPolicy):
     def no_retries(cls):
         return cls(retry_count_total=0)
 
-    def configure_retries(self, **kwargs):
+    def configure_retries(self, options):
         return {
-            'total': kwargs.pop("retry_total", self.total_retries),
-            'connect': kwargs.pop("retry_connect", self.connect_retries),
-            'read': kwargs.pop("retry_read", self.read_retries),
-            'status': kwargs.pop("retry_status", self.status_retries),
-            'backoff': kwargs.pop("retry_backoff_factor", self.backoff_factor),
-            'max_backoff': kwargs.pop("retry_backoff_max", self.BACKOFF_MAX),
-            'methods': kwargs.pop("retry_on_methods", self._method_whitelist),
+            'total': options.pop("retry_total", self.total_retries),
+            'connect': options.pop("retry_connect", self.connect_retries),
+            'read': options.pop("retry_read", self.read_retries),
+            'status': options.pop("retry_status", self.status_retries),
+            'backoff': options.pop("retry_backoff_factor", self.backoff_factor),
+            'max_backoff': options.pop("retry_backoff_max", self.BACKOFF_MAX),
+            'methods': options.pop("retry_on_methods", self._method_whitelist),
             'history': []
         }
 
@@ -167,13 +169,13 @@ class RetryPolicy(HTTPPolicy):
         """ Errors when we're fairly sure that the server did not receive the
         request, so it should be safe to retry.
         """
-        return isinstance(err, ConnectionError)
+        return isinstance(err, ConnectError)
 
     def _is_read_error(self, err):
         """ Errors that occur after the request has been started, so we should
         assume that the server began processing it.
         """
-        return isinstance(err, ConnectionReadError)
+        return isinstance(err, ServiceResponseError)
 
     def _is_method_retryable(self, settings, request, response=None):
         """ Checks if a given HTTP method should be retried upon, depending if
@@ -240,20 +242,20 @@ class RetryPolicy(HTTPPolicy):
 
         return not self.is_exhausted(settings)
 
-    def send(self, request, **kwargs):
+    def send(self, request):
         retries_remaining = True
         response = None
-        retry_settings = self.configure_retries(**kwargs)
+        retry_settings = self.configure_retries(request.context.options)
         while retries_remaining:
             try:
-                response = self.next.send(request, **kwargs)
+                response = self.next.send(request)
                 if self.is_retry(retry_settings, response):
                     retries_remaining = self.increment(retry_settings, response=response)
                     if retries_remaining:
                         self.sleep(retry_settings, request.context.transport, response=response)
                         continue
                 return response
-            except ServiceRequestError as err:
+            except AzureError as err:
                 if self._is_method_retryable(retry_settings, request.http_request):
                     retries_remaining = self.increment(retry_settings, response=request, error=err)
                     if retries_remaining:

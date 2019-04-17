@@ -56,13 +56,13 @@ class HttpTransport(AbstractContextManager, ABC, Generic[HTTPRequestType, HTTPRe
     """
 
     @abc.abstractmethod
-    def send(self, request, **config):
+    def send(self, request, **kwargs):
         # type: (PipelineRequest[HTTPRequestType], Any) -> PipelineResponse[HTTPRequestType, HTTPResponseType]
         """Send the request using this HTTP sender.
         """
         pass
 
-    def build_context(self):
+    def build_context(self, **kwargs):
         # type: () -> Any
         """Allow the sender to build a context that will be passed
         across the pipeline with the request.
@@ -147,6 +147,13 @@ class HttpRequest(object):
         query = '?' + '&'.join(query_params)
         self.url = self.url + query
 
+    def set_streamed_data_body(self, data):
+        """Set a streamable data body."""
+        if not any(hasattr(data, attr) for attr in ["read", "__iter__", "__aiter__"]):
+            raise TypeError("A streamable data source must be an open file-like object or iterable.")
+        self.data = data
+        self.files = None
+
     def set_xml_body(self, data):
         """Set an XML element tree as the body of the request."""
         if data is None:
@@ -166,7 +173,7 @@ class HttpRequest(object):
             self.headers['Content-Length'] = str(len(self.data))
         self.files = None
 
-    def set_multipart_body(self, data=None):
+    def set_formdata_body(self, data=None):
         """Set form-encoded data as the body of the request."""
         if data is None:
             data = {}
@@ -194,13 +201,15 @@ class _HttpResponseBase(object):
     will provide async ways to access the body
     Full in-memory using "body" as bytes.
     """
-    def __init__(self, request, internal_response):
+    def __init__(self, request, internal_response, block_size):
         # type: (HttpRequest, Any) -> None
         self.request = request
         self.internal_response = internal_response
         self.status_code = None  # type: Optional[int]
         self.headers = {}  # type: Dict[str, str]
         self.reason = None  # type: Optional[str]
+        self.block_size = block_size
+
 
     def body(self):
         # type: () -> bytes
@@ -221,15 +230,12 @@ class _HttpResponseBase(object):
 class HttpResponse(_HttpResponseBase):
 
 
-    def stream_download(self, chunk_size=None, callback=None):
+    def stream_download(self):
 
-        # type: (Optional[int], Optional[Callable]) -> Iterator[bytes]
+        # type: () -> Iterator[bytes]
         """Generator for streaming request body data.
 
         Should be implemented by sub-classes if streaming download
         is supported.
-
-        :param callback: Custom callback for monitoring progress.
-        :param int chunk_size:
         """
         pass
