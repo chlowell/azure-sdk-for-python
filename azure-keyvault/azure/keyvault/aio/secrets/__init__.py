@@ -6,10 +6,9 @@
 # --------------------------------------------------------------------------
 
 from ._client import SecretClient
-from ...secrets._models import Secret, SecretAttributes, DeletedSecret, SecretAttributesPaged
+from ...secrets._models import Secret, SecretAttributes, DeletedSecret
 
 __all__ = ['SecretClient',
            'SecretAttributes',
            'Secret',
-           'SecretAttributesPaged',
            'DeletedSecret']
