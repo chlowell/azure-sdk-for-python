@@ -4,9 +4,8 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-import asyncio
 import functools
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, AsyncGenerator
 import uuid
 
 from azure.core.configuration import Configuration
@@ -15,7 +14,7 @@ from azure.core.pipeline.policies import (
     AsyncRetryPolicy,
     AsyncRedirectPolicy,
 )
-from azure.core.pipeline.transport import AsyncioRequestsTransport, HttpRequest
+from azure.core.pipeline.transport import AsyncioRequestsTransport, HttpRequest, HttpResponse
 from azure.core.pipeline import AsyncPipeline
 from azure.core.exceptions import ClientRequestError
 from azure.keyvault._internal import _BearerTokenCredentialPolicy
@@ -23,12 +22,12 @@ from azure.keyvault._internal import _BearerTokenCredentialPolicy
 from ..._generated import DESERIALIZE, SERIALIZE
 from ..._generated.v7_0.models import (
     DeletedSecretItemPaged,
+    SecretAttributes as _SecretAttributes,
     SecretItemPaged,
     SecretRestoreParameters,
     SecretSetParameters,
     SecretUpdateParameters,
 )
-from ..._generated.v7_0.models import SecretAttributes as _SecretAttributes
 
 from ...secrets._models import (
     Secret,
@@ -195,7 +194,7 @@ class SecretClient:
 
         return SecretAttributes.from_secret_bundle(bundle)
 
-    async def list_secrets(self, max_page_size=None, **kwargs):
+    def list_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List secrets in the vault.
 
         The Get Secrets operation is applicable to the entire vault. However,
@@ -213,11 +212,11 @@ class SecretClient:
          :class:`ClientRequestError<azure.core.ClientRequestError>`
         """
         url = '{}/secrets'.format(self._vault_url)
-        paging = asyncio.coroutine(functools.partial(self._internal_paging, url, max_page_size))
-        pages = SecretItemPaged(paging, DESERIALIZE.dependencies)
-        return (SecretAttributes.from_secret_item(item) for item in pages)
+        paging = functools.partial(self._internal_paging, url, **kwargs)
+        pages = SecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
+        return (SecretAttributes.from_secret_item(item) async for item in pages)
 
-    async def list_secret_versions(self, name, max_page_size=None, **kwargs):
+    def list_secret_versions(self, name: str, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List all versions of the specified secret.
 
         The full secret identifier and attributes are provided in the response.
@@ -235,11 +234,10 @@ class SecretClient:
         :raises:
          :class:`ClientRequestError<azure.core.ClientRequestError>`
         """
-
         url = '{}/secrets/{}/versions'.format(self._vault_url, name)
-        paging = asyncio.coroutine(functools.partial(self._internal_paging, url, max_page_size))
-        pages = SecretItemPaged(paging, DESERIALIZE.dependencies)
-        return (SecretAttributes.from_secret_item(item) for item in pages)
+        paging = functools.partial(self._internal_paging, url, **kwargs)
+        pages = SecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
+        return (SecretAttributes.from_secret_item(item) async for item in pages)
 
     async def backup_secret(self, name, **kwargs):
         """Backs up the specified secret.
@@ -333,12 +331,11 @@ class SecretClient:
 
         return DeletedSecret.from_deleted_secret_bundle(bundle)
 
-    async def list_deleted_secrets(self, max_page_size=None, **kwargs):
-        # type: (Optional[int], Mapping[str, Any]) -> DeletedSecretPaged
+    def list_deleted_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[DeletedSecret, None]:
         url = '{}/deletedsecrets'.format(self._vault_url)
-        paging = functools.partial(self._internal_paging, url, max_page_size)
-        pages = DeletedSecretItemPaged(paging, DESERIALIZE.dependencies)
-        return (DeletedSecret.from_deleted_secret_item(item) for item in pages)
+        paging = functools.partial(self._internal_paging, url, **kwargs)
+        pages = DeletedSecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
+        return (DeletedSecret.from_deleted_secret_item(item) async for item in pages)
 
     async def purge_deleted_secret(self, name, **kwargs):
         # type: (str, Mapping[str, Any]) -> None
@@ -365,13 +362,13 @@ class SecretClient:
 
         return SecretAttributes.from_secret_bundle(bundle)
 
-    async def _internal_paging(self, url, max_page_size, next_link=None, raw=False, **kwargs):
-        # type: (str, int, Optional[str], Optional[bool], Mapping[str, Any]) -> HttpResponse
+    async def _internal_paging(self, url: str, next_link: Optional[str] = None, **kwargs: Mapping[str, Any]) -> HttpResponse:
         if next_link:
             url = next_link
             query_parameters = {}
         else:
             query_parameters = {'api-version': self._api_version}
+            max_page_size = kwargs.get("max_page_size")
             if max_page_size is not None:
                 query_parameters['maxresults'] = str(max_page_size)
 
