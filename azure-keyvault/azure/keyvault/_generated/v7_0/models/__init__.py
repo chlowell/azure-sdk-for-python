@@ -9,19 +9,8 @@
 # regenerated.
 # --------------------------------------------------------------------------
 
-from .attributes import Attributes
-from .secret_attributes import SecretAttributes
-from .secret_bundle import SecretBundle
-from .secret_item import SecretItem
-from .deleted_secret_bundle import DeletedSecretBundle
-from .deleted_secret_item import DeletedSecretItem
-from .secret_restore_parameters import SecretRestoreParameters
-from .secret_properties import SecretProperties
-from .secret_set_parameters import SecretSetParameters
-from .secret_update_parameters import SecretUpdateParameters
-from .backup_secret_result import BackupSecretResult
-from .secret_item_paged import SecretItemPaged
-from .deleted_secret_item_paged import DeletedSecretItemPaged
+from ._models import *
+from ._paged_models import *
 
 __all__ = [
     'Attributes',
