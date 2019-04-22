@@ -4,46 +4,25 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
-import functools
 from typing import Any, Mapping, Optional, AsyncGenerator
-import uuid
 
 from azure.core.configuration import Configuration
-from azure.core.pipeline.policies import (
-    UserAgentPolicy,
-    AsyncRetryPolicy,
-    AsyncRedirectPolicy,
-)
-from azure.core.pipeline.transport import AsyncioRequestsTransport, HttpRequest, HttpResponse
+from azure.core.pipeline.policies import UserAgentPolicy, AsyncRetryPolicy, AsyncRedirectPolicy
+from azure.core.pipeline.transport import AsyncioRequestsTransport
 from azure.core.pipeline import AsyncPipeline
-from azure.core.exceptions import ClientRequestError
+from azure.keyvault._generated.v7_0.aio import KeyVaultClient
 from azure.keyvault._internal import _BearerTokenCredentialPolicy
 
-from ..._generated import DESERIALIZE, SERIALIZE
-from ..._generated.v7_0.models import (
-    DeletedSecretItemPaged,
-    SecretAttributes as _SecretAttributes,
-    SecretItemPaged,
-    SecretRestoreParameters,
-    SecretSetParameters,
-    SecretUpdateParameters,
-)
+from ..._generated.v7_0.models import SecretAttributes as _SecretAttributes, KeyVaultErrorException
 
-from ...secrets._models import (
-    Secret,
-    DeletedSecret,
-    SecretAttributes,
-)
+from ...secrets._models import Secret, DeletedSecret, SecretAttributes
 
 
 class SecretClient:
-
-    _api_version = '7.0'
-
     @staticmethod
     def create_config(**kwargs):
         config = Configuration(**kwargs)
-        config.user_agent = UserAgentPolicy('SecretClient', **kwargs)
+        config.user_agent = UserAgentPolicy("SecretClient", **kwargs)
         config.headers = None
         config.retry = AsyncRetryPolicy(**kwargs)
         config.redirect = AsyncRedirectPolicy(**kwargs)
@@ -58,23 +37,25 @@ class SecretClient:
         :param azure.core.configuration.Configuration config:  The configuration for the SecretClient
         """
         if not credentials:
-            raise ValueError('credentials')
+            raise ValueError("credentials")
 
         if not vault_url:
-            raise ValueError('vault_url')
+            raise ValueError("vault_url")
 
         self._vault_url = vault_url
+
         config = config or SecretClient.create_config(**kwargs)
         transport = AsyncioRequestsTransport(config)
         policies = [
-            config.user_agent,
-            config.headers,
+            config.user_agent_policy,
+            config.headers_policy,
             _BearerTokenCredentialPolicy(credentials),
-            config.redirect,
-            config.retry,
+            config.redirect_policy,
+            config.retry_policy,
             # config.logging,
         ]
         self._pipeline = AsyncPipeline(transport, policies=policies)
+        self._client = KeyVaultClient(credentials, pipeline=self._pipeline)
 
     @property
     def vault_url(self):
@@ -94,25 +75,11 @@ class SecretClient:
         :raises:
          :class:`KeyVaultErrorException<azure.keyvault.KeyVaultErrorException>`
         """
-        url = '/'.join((self._vault_url, 'secrets', name, version))
-
-        query_parameters = {'api-version': self._api_version}
-
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'x-ms-client-request-id': str(uuid.uuid1())
-        }
-
-        request = HttpRequest('GET', url, headers)
-        request.format_parameters(query_parameters)
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('SecretBundle', response)
-
-        return Secret.from_secret_bundle(bundle)
+        try:
+            bundle = await self._client.get_secret(self.vault_url, name, version, kwargs)
+            return Secret.from_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise  # TODO
 
     async def set_secret(
         self, name, value, content_type=None, enabled=None, not_before=None, expires=None, tags=None, **kwargs
@@ -134,65 +101,40 @@ class SecretClient:
             overrides<msrest:optionsforoperations>`.
         :return: The created secret
         :rtype: ~azure.keyvault.secret.Secret
-        :raises:
-        :class:`azure.core.ClientRequestError`
+        :raises:{
+        :class:`azure.core.HttpRequestError`
         """
-        url = '/'.join((self._vault_url, 'secrets', name))
-
-        query_parameters = {'api-version': self._api_version}
-
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'x-ms-client-request-id': str(uuid.uuid1())
-        }
-
-        if enabled is not None or not_before is not None or expires is not None:
-            attributes = _SecretAttributes(enabled=enabled, not_before=not_before, expires=expires)
-        else:
-            attributes = None
-        secret = SecretSetParameters(secret_attributes=attributes, value=value, tags=tags, content_type=content_type)
-
-        request_body = SERIALIZE.body(secret, 'SecretSetParameters')
-        request = HttpRequest('PUT', url, headers)
-        request.set_json_body(request_body)
-        request.format_parameters(query_parameters)
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('SecretBundle', response)
-
-        return Secret.from_secret_bundle(bundle)
+        try:
+            if enabled is not None or not_before is not None or expires is not None:
+                attributes = _SecretAttributes(enabled=enabled, not_before=not_before, expires=expires)
+            else:
+                attributes = None
+            bundle = await self._client.set_secret(
+                self.vault_url, name, value, secret_attributes=attributes, content_type=content_type, tags=tags
+            )
+            return Secret.from_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def update_secret_attributes(
         self, name, version, content_type=None, enabled=None, not_before=None, expires=None, tags=None, **kwargs
     ):
-        url = '/'.join((self._vault_url, 'secrets', name, version))
-
-        attributes = _SecretAttributes(enabled=enabled, not_before=not_before, expires=expires)
-        secret = SecretUpdateParameters(secret_attributes=attributes, tags=tags, content_type=content_type)
-
-        query_parameters = {'api-version': self._api_version}
-
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'x-ms-client-request-id': str(uuid.uuid1())
-        }
-
-        request = HttpRequest('PATCH', url, headers)
-        request_body = SERIALIZE.body(secret, 'Secret')
-        request.set_json_body(request_body)
-        request.format_parameters(query_parameters)
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('SecretBundle', response)
-
-        return SecretAttributes.from_secret_bundle(bundle)
+        try:
+            if enabled is not None or not_before is not None or expires is not None:
+                attributes = _SecretAttributes(enabled=enabled, not_before=not_before, expires=expires)
+            else:
+                attributes = None
+            bundle = await self._client.update_secret(
+                self.vault_url,
+                name,
+                secret_version=version,
+                content_type=content_type,
+                tags=tags,
+                secret_attributes=attributes,
+            )
+            return SecretAttributes.from_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
 
     def list_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List secrets in the vault.
@@ -209,12 +151,14 @@ class SecretClient:
         :rtype:
          ~azure.keyvault.secrets.SecretAttributesPaged[~azure.keyvault.secret.Secret]
         :raises:
-         :class:`ClientRequestError<azure.core.ClientRequestError>`
+         :class:`HttpRequestError<azure.core.HttpRequestError>`
         """
-        url = '{}/secrets'.format(self._vault_url)
-        paging = functools.partial(self._internal_paging, url, **kwargs)
-        pages = SecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
-        return (SecretAttributes.from_secret_item(item) async for item in pages)
+        try:
+            max_results = kwargs.get("max_page_size")
+            pages = self._client.get_secrets(self.vault_url, maxresults=max_results)
+            return (SecretAttributes.from_secret_item(item) async for item in pages)
+        except KeyVaultErrorException as ex:
+            raise
 
     def list_secret_versions(self, name: str, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List all versions of the specified secret.
@@ -232,12 +176,14 @@ class SecretClient:
         :rtype:
          ~azure.keyvault.secrets.SecretAttributesPaged[~azure.keyvault.secret.Secret]
         :raises:
-         :class:`ClientRequestError<azure.core.ClientRequestError>`
+         :class:`HttpRequestError<azure.core.HttpRequestError>`
         """
-        url = '{}/secrets/{}/versions'.format(self._vault_url, name)
-        paging = functools.partial(self._internal_paging, url, **kwargs)
-        pages = SecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
-        return (SecretAttributes.from_secret_item(item) async for item in pages)
+        try:
+            max_results = kwargs.get("max_page_size")
+            pages = self._client.get_secret_versions(self.vault_url, name, maxresults=max_results)
+            return (SecretAttributes.from_secret_item(item) async for item in pages)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def backup_secret(self, name, **kwargs):
         """Backs up the specified secret.
@@ -250,26 +196,13 @@ class SecretClient:
         :return: The raw bytes of the secret backup.
         :rtype: bytes
         :raises:
-         :class:azure.core.ClientRequestError
+         :class:azure.core.HttpRequestError
         """
-        url = '/'.join((self._vault_url, 'secrets', name, 'backup'))
-
-        query_parameters = {'api-version': self._api_version}
-
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'x-ms-client-request-id': str(uuid.uuid1())
-        }
-        request = HttpRequest('POST', url, headers)
-        request.format_parameters(query_parameters)
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        result = DESERIALIZE('BackupSecretResult', response)
-
-        return result.value
+        try:
+            backup_result = await self._client.backup_secret(self.vault_url, name)
+            return backup_result.value
+        except KeyVaultErrorException as ex:
+            raise
 
     async def restore_secret(self, backup, **kwargs):
         """Restores a backed up secret to a vault.
@@ -281,104 +214,49 @@ class SecretClient:
         :return: The restored secret
         :rtype: ~azure.keyvault.secrets.Secret
         :raises:
-         :class:azure.core.ClientRequestError
+         :class:azure.core.HttpRequestError
         """
-        url = '/'.join((self._vault_url, 'secrets', 'restore'))
-        headers = {
-            'Content-Type': 'application/json; charset=utf-8',
-            'x-ms-client-request-id': str(uuid.uuid1())
-        }
-        request = HttpRequest('POST', url, headers)
-
-        restore_parameters = SecretRestoreParameters(secret_bundle_backup=backup)
-        request_body = SERIALIZE.body(restore_parameters, 'SecretRestoreParameters')
-        request.set_json_body(request_body)
-        request.format_parameters({'api-version': self._api_version})
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('SecretBundle', response)
-
-        return SecretAttributes.from_secret_bundle(bundle)
+        try:
+            bundle = await self._client.restore_secret(self.vault_url, backup)
+            return SecretAttributes.from_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def delete_secret(self, name, **kwargs):
         # type: (str, Mapping[str, Any]) -> DeletedSecret
-        url = '/'.join([self._vault_url, 'secrets', name])
-        request = HttpRequest('DELETE', url)
-        request.format_parameters({'api-version': self._api_version})
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
-
-        bundle = DESERIALIZE('DeletedSecretBundle', response)
-
-        return DeletedSecret.from_deleted_secret_bundle(bundle)
+        try:
+            bundle = await self._client.delete_secret(self.vault_url, name)
+            return DeletedSecret.from_deleted_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def get_deleted_secret(self, name, **kwargs):
         # type: (str, Mapping[str, Any]) -> DeletedSecret
-        url = '/'.join([self._vault_url, 'deletedsecrets', name])
-        request = HttpRequest('GET', url)
-        request.format_parameters({'api-version': self._api_version})
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('DeletedSecretBundle', response)
-
-        return DeletedSecret.from_deleted_secret_bundle(bundle)
+        try:
+            bundle = await self._client.get_deleted_secret(self.vault_url, name)
+            return DeletedSecret.from_deleted_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
 
     def list_deleted_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[DeletedSecret, None]:
-        url = '{}/deletedsecrets'.format(self._vault_url)
-        paging = functools.partial(self._internal_paging, url, **kwargs)
-        pages = DeletedSecretItemPaged(command=None, classes=DESERIALIZE.dependencies, async_command=paging)
-        return (DeletedSecret.from_deleted_secret_item(item) async for item in pages)
+        try:
+            max_results = kwargs.get("max_page_size")
+            pages = self._client.get_deleted_secrets(self.vault_url, maxresults=max_results)
+            return (DeletedSecret.from_deleted_secret_item(item) async for item in pages)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def purge_deleted_secret(self, name, **kwargs):
         # type: (str, Mapping[str, Any]) -> None
-        url = '/'.join([self._vault_url, 'deletedsecrets', name])
-        request = HttpRequest('DELETE', url)
-        request.format_parameters({'api-version': self._api_version})
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 204:
-            raise ClientRequestError(response)
-        return
+        try:
+            await self._client.purge_deleted_secret(self.vault_url, name)
+        except KeyVaultErrorException as ex:
+            raise
 
     async def recover_deleted_secret(self, name, **kwargs):
         # type: (str, Mapping[str, Any]) -> SecretAttributes
-        url = '/'.join([self._vault_url, 'deletedsecrets', name, 'recover'])
-        request = HttpRequest('POST', url)
-        request.format_parameters({'api-version': self._api_version})
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        bundle = DESERIALIZE('SecretBundle', response)
-
-        return SecretAttributes.from_secret_bundle(bundle)
-
-    async def _internal_paging(self, url: str, next_link: Optional[str] = None, **kwargs: Mapping[str, Any]) -> HttpResponse:
-        if next_link:
-            url = next_link
-            query_parameters = {}
-        else:
-            query_parameters = {'api-version': self._api_version}
-            max_page_size = kwargs.get("max_page_size")
-            if max_page_size is not None:
-                query_parameters['maxresults'] = str(max_page_size)
-
-        headers = {'x-ms-client-request-id': str(uuid.uuid1())}
-
-        request = HttpRequest('GET', url, headers)
-        request.format_parameters(query_parameters)
-
-        response = (await self._pipeline.run(request, **kwargs)).http_response
-        if response.status_code != 200:
-            raise ClientRequestError(response)
-
-        return response
+        try:
+            bundle = await self._client.recover_deleted_secret(self.vault_url, name)
+            return SecretAttributes.from_secret_bundle(bundle)
+        except KeyVaultErrorException as ex:
+            raise
