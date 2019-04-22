@@ -5,7 +5,7 @@
 # regenerated.
 # --------------------------------------------------------------------------
 
-from msrest.paging import Paged
+from azure.core.paging import Paged
 
 
 class KeyItemPaged(Paged):
