@@ -16,7 +16,7 @@ from azure.core.pipeline.policies import (
 )
 from azure.core.pipeline.transport import RequestsTransport, HttpRequest
 from azure.core.pipeline import Pipeline
-from azure.core.exceptions import ClientRequestError
+from azure.core.exceptions import HttpRequestError
 from azure.keyvault._internal import _BearerTokenCredentialPolicy
 
 from .._generated import DESERIALIZE, SERIALIZE
@@ -110,7 +110,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -137,7 +137,7 @@ class SecretClient:
         :return: The created secret
         :rtype: ~azure.keyvault.secret.Secret
         :raises:
-        :class:`azure.core.ClientRequestError`
+        :class:`azure.core.HttpRequestError`
         """
         url = '/'.join((self._vault_url, 'secrets', name))
 
@@ -159,7 +159,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -189,7 +189,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -210,7 +210,7 @@ class SecretClient:
         :rtype:
          ~azure.keyvault.secrets.SecretAttributesPaged[~azure.keyvault.secret.Secret]
         :raises:
-         :class:`ClientRequestError<azure.core.ClientRequestError>`
+         :class:`HttpRequestError<azure.core.HttpRequestError>`
         """
         url = '{}/secrets'.format(self._vault_url)
         paging = functools.partial(self._internal_paging, url, max_page_size)
@@ -233,7 +233,7 @@ class SecretClient:
         :rtype:
          ~azure.keyvault.secrets.SecretAttributesPaged[~azure.keyvault.secret.Secret]
         :raises:
-         :class:`ClientRequestError<azure.core.ClientRequestError>`
+         :class:`HttpRequestError<azure.core.HttpRequestError>`
         """
 
         url = '{}/secrets/{}/versions'.format(self._vault_url, name)
@@ -252,7 +252,7 @@ class SecretClient:
         :return: The raw bytes of the secret backup.
         :rtype: bytes
         :raises:
-         :class:azure.core.ClientRequestError
+         :class:azure.core.HttpRequestError
         """
         url = '/'.join((self._vault_url, 'secrets', name, 'backup'))
 
@@ -270,7 +270,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         result = DESERIALIZE('BackupSecretResult', response)
 
@@ -286,7 +286,7 @@ class SecretClient:
         :return: The restored secret
         :rtype: ~azure.keyvault.secrets.Secret
         :raises:
-         :class:azure.core.ClientRequestError
+         :class:azure.core.HttpRequestError
         """
         url = '/'.join((self._vault_url, 'secrets', 'restore'))
 
@@ -307,7 +307,7 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -321,7 +321,7 @@ class SecretClient:
         request.format_parameters({'api-version': self._api_version})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
+            raise HttpRequestError("Request failed with code {}: '{}'".format(response.status_code, response.text()))
 
         bundle = DESERIALIZE('DeletedSecretBundle', response)
 
@@ -335,7 +335,7 @@ class SecretClient:
         request.format_parameters({'api-version': self._api_version})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('DeletedSecretBundle', response)
 
@@ -357,7 +357,7 @@ class SecretClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 204:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
         return
 
     def recover_deleted_secret(self, name, **kwargs):
@@ -369,7 +369,7 @@ class SecretClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         bundle = DESERIALIZE('SecretBundle', response)
 
@@ -393,6 +393,6 @@ class SecretClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         return response

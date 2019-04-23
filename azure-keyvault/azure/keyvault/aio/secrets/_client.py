@@ -76,7 +76,7 @@ class SecretClient:
          :class:`KeyVaultErrorException<azure.keyvault.KeyVaultErrorException>`
         """
         try:
-            bundle = await self._client.get_secret(self.vault_url, name, version, kwargs)
+            bundle = await self._client.get_secret(self.vault_url, name, version, **kwargs)
             return Secret.from_secret_bundle(bundle)
         except KeyVaultErrorException as ex:
             raise  # TODO
@@ -132,11 +132,11 @@ class SecretClient:
                 tags=tags,
                 secret_attributes=attributes,
             )
-            return SecretAttributes.from_secret_bundle(bundle)
+            return SecretAttributes.from_secret_bundle(bundle)  # pylint: disable=protected-access
         except KeyVaultErrorException as ex:
             raise
 
-    def list_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
+    async def list_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List secrets in the vault.
 
         The Get Secrets operation is applicable to the entire vault. However,
@@ -156,11 +156,12 @@ class SecretClient:
         try:
             max_results = kwargs.get("max_page_size")
             pages = self._client.get_secrets(self.vault_url, maxresults=max_results)
-            return (SecretAttributes.from_secret_item(item) async for item in pages)
+            async for item in pages:
+                yield SecretAttributes.from_secret_item(item)
         except KeyVaultErrorException as ex:
             raise
 
-    def list_secret_versions(self, name: str, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
+    async def list_secret_versions(self, name: str, **kwargs: Mapping[str, Any]) -> AsyncGenerator[SecretAttributes, None]:
         """List all versions of the specified secret.
 
         The full secret identifier and attributes are provided in the response.
@@ -181,7 +182,8 @@ class SecretClient:
         try:
             max_results = kwargs.get("max_page_size")
             pages = self._client.get_secret_versions(self.vault_url, name, maxresults=max_results)
-            return (SecretAttributes.from_secret_item(item) async for item in pages)
+            async for item in pages:
+                yield SecretAttributes.from_secret_item(item)
         except KeyVaultErrorException as ex:
             raise
 
@@ -238,11 +240,12 @@ class SecretClient:
         except KeyVaultErrorException as ex:
             raise
 
-    def list_deleted_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[DeletedSecret, None]:
+    async def list_deleted_secrets(self, **kwargs: Mapping[str, Any]) -> AsyncGenerator[DeletedSecret, None]:
         try:
             max_results = kwargs.get("max_page_size")
             pages = self._client.get_deleted_secrets(self.vault_url, maxresults=max_results)
-            return (DeletedSecret.from_deleted_secret_item(item) async for item in pages)
+            async for item in pages:
+                yield DeletedSecret.from_deleted_secret_item(item)
         except KeyVaultErrorException as ex:
             raise
 

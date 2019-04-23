@@ -15,7 +15,7 @@ from ._models import (
     KeyUpdateParameters,
 )
 from azure.core.configuration import Configuration
-from azure.core.exceptions import ClientRequestError
+from azure.core.exceptions import HttpRequestError
 from azure.core.pipeline import Pipeline
 from azure.core.pipeline.policies import (
     HTTPPolicy,
@@ -123,7 +123,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         key = self._deserialize("Key", response)
 
@@ -137,7 +137,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
         deleted_key = self._deserialize("DeletedKey", response)
 
         return deleted_key
@@ -164,7 +164,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(
+            raise HttpRequestError(
                 "Request failed with code {}: '{}'".format(
                     response.status_code, response.text()
                 )
@@ -182,7 +182,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
         deleted_key = self._deserialize("DeletedKey", response)
 
         return deleted_key
@@ -214,7 +214,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 204:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         return
 
@@ -227,7 +227,7 @@ class KeyClient:
 
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         key = self._deserialize("Key", response)
 
@@ -252,7 +252,7 @@ class KeyClient:
         request.format_parameters({"api-version": self.API_VERSION})
         response = self._pipeline.run(request, **kwargs).http_response
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
         key = self._deserialize("Key", response)
 
         return key
@@ -275,7 +275,7 @@ class KeyClient:
         response = self._pipeline.run(request, **kwargs).http_response
 
         if response.status_code != 200:
-            raise ClientRequestError(response)
+            raise HttpRequestError(response)
 
         return response
 
