@@ -10,18 +10,36 @@
 # Licensed under the MIT License. See License.txt in the project root for
 # license information.
 # --------------------------------------------------------------------------
+import asyncio
+import functools
 import pytest
+from azure.keyvault._generated.v7_0.models import KeyVaultErrorException
 from devtools_testutils import ResourceGroupPreparer
 from keyvault_preparer import KeyVaultPreparer
 from keyvault_testcase import KeyvaultTestCase
-from azure.core.exceptions import HttpRequestError
+
+from azure.keyvault.aio.vault_client import VaultClient
 
 from dateutil import parser as date_parse
 import time
 
 
-class KeyVaultSecretTest(KeyvaultTestCase):
+def await_prepared_test(test_fn):
+    """Synchronous wrapper for async test methods. Used to avoid making changes
+       upstream to AbstractPreparer (which doesn't await the functions it wraps)
+    """
+    @functools.wraps(test_fn)
+    def run(test_class_instance, *args, **kwargs):
+        # TODO: this is a workaround for KeyVaultPreparer creating a sync client; let's obviate it
+        vault_client = kwargs.get("vault_client")
+        credentials = test_class_instance.settings.get_credentials(resource="https://vault.azure.net")
+        aio_client = VaultClient(vault_client.vault_url, credentials)
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(test_fn(test_class_instance, vault_client=aio_client))
+    return run
 
+
+class KeyVaultSecretTest(KeyvaultTestCase):
 
     def _assert_secret_attributes_equal(self, s1, s2):
         self.assertEqual(s1.id , s2.id)
@@ -55,6 +73,7 @@ class KeyVaultSecretTest(KeyvaultTestCase):
     @pytest.mark.asyncio
     @ResourceGroupPreparer()
     @KeyVaultPreparer()
+    @await_prepared_test
     async def test_secret_crud_operations(self, vault_client, **kwargs):
         self.assertIsNotNone(vault_client)
         client = vault_client.secrets
@@ -103,12 +122,13 @@ class KeyVaultSecretTest(KeyvaultTestCase):
             assertRaises = self.assertRaisesRegexp
 
         # deleted secret isn't found
-        with assertRaises(HttpRequestError, r"(?i)not found"):
+        with assertRaises(KeyVaultErrorException, r"(?i)not found"):
             await client.get_secret(updated.name, '')
 
     @pytest.mark.asyncio
     @ResourceGroupPreparer()
     @KeyVaultPreparer()
+    @await_prepared_test
     async def test_secret_list(self, vault_client, **kwargs):
         self.assertIsNotNone(vault_client)
         client = vault_client.secrets
@@ -126,12 +146,13 @@ class KeyVaultSecretTest(KeyvaultTestCase):
                 expected[secret.id] = secret
 
         # list secrets
-        result = client.list_secrets(max_secrets)
-        self._validate_secret_list(result, expected)
+        result = client.list_secrets(max_results=max_secrets)
+        await self._validate_secret_list(result, expected)
 
     @pytest.mark.asyncio
     @ResourceGroupPreparer()
     @KeyVaultPreparer()
+    @await_prepared_test
     async def test_list_versions(self, vault_client, **kwargs):
         self.assertIsNotNone(vault_client)
         client = vault_client.secrets
@@ -150,11 +171,12 @@ class KeyVaultSecretTest(KeyvaultTestCase):
 
         # list secret versions
         secrets = client.list_secret_versions(secret_name)
-        self._validate_secret_list(secrets, expected)
+        await self._validate_secret_list(secrets, expected)
 
     @pytest.mark.asyncio
     @ResourceGroupPreparer()
     @KeyVaultPreparer()
+    @await_prepared_test
     async def test_backup_restore(self, vault_client, **kwargs):
         self.assertIsNotNone(vault_client)
         client = vault_client.secrets
@@ -178,6 +200,7 @@ class KeyVaultSecretTest(KeyvaultTestCase):
     @pytest.mark.asyncio
     @ResourceGroupPreparer()
     @KeyVaultPreparer(enable_soft_delete=True)
+    @await_prepared_test
     async def test_recover_purge(self, vault_client, **kwargs):
         self.assertIsNotNone(vault_client)
         client = vault_client.secrets
@@ -204,7 +227,7 @@ class KeyVaultSecretTest(KeyvaultTestCase):
             time.sleep(20)
 
         # validate all our deleted secrets are returned by list_deleted_secrets
-        deleted = [s.name for s in client.list_deleted_secrets()]
+        deleted = [s.name async for s in client.list_deleted_secrets()]
         self.assertTrue(all(s in deleted for s in secrets.keys()))
 
         # recover select secrets
@@ -219,7 +242,7 @@ class KeyVaultSecretTest(KeyvaultTestCase):
             time.sleep(20)
 
         # validate none of our purged secrets are returned by list_deleted_secrets
-        deleted = [s.name for s in client.list_deleted_secrets()]
+        deleted = [s.name async for s in client.list_deleted_secrets()]
         self.assertTrue(not any(s in deleted for s in secrets.keys()))
 
         # validate the recovered secrets
