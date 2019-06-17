@@ -12,6 +12,6 @@ class TokenCredential(Protocol):
     :param str scopes: Lets you specify the type of access needed.
     """
     # pylint:disable=too-few-public-methods
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
         pass

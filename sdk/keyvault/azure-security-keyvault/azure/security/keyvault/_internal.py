@@ -23,6 +23,7 @@ from azure.core.pipeline.policies import BearerTokenCredentialPolicy, HTTPPolicy
 from azure.core.pipeline.transport import RequestsTransport
 
 from ._generated import KeyVaultClient
+from .auth_challenge_policy import AuthChallengePolicy
 
 
 _VaultId = namedtuple("VaultId", ["vault_url", "collection", "name", "version"])
@@ -103,6 +104,7 @@ class _KeyVaultClientBase(object):
             config.proxy_policy,
             config.redirect_policy,
             config.retry_policy,
+            AuthChallengePolicy(),
             config.authentication_policy,
             config.logging_policy,
         ]

@@ -35,12 +35,12 @@ class ClientSecretCredential(ClientSecretCredentialBase):
         super(ClientSecretCredential, self).__init__(client_id, secret, tenant_id, **kwargs)
         self._client = AuthnClient(Endpoints.AAD_OAUTH2_V2_FORMAT.format(tenant_id), config, **kwargs)
 
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
-        token = self._client.get_cached_token(scopes)
+        token = self._client.get_cached_token(scopes, **kwargs)
         if not token:
             data = dict(self._form_data, scope=" ".join(scopes))
-            token = self._client.request_token(scopes, form_data=data)
+            token = self._client.request_token(scopes, form_data=data, **kwargs)
         return token
 
 
@@ -52,12 +52,12 @@ class CertificateCredential(CertificateCredentialBase):
         self._client = AuthnClient(Endpoints.AAD_OAUTH2_V2_FORMAT.format(tenant_id), config, **kwargs)
         super(CertificateCredential, self).__init__(client_id, tenant_id, certificate_path, **kwargs)
 
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
-        token = self._client.get_cached_token(scopes)
+        token = self._client.get_cached_token(scopes, **kwargs)
         if not token:
             data = dict(self._form_data, scope=" ".join(scopes))
-            token = self._client.request_token(scopes, form_data=data)
+            token = self._client.request_token(scopes, form_data=data, **kwargs)
         return token
 
 
@@ -83,14 +83,14 @@ class EnvironmentCredential:
                 **kwargs
             )
 
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
         if not self._credential:
             message = "Missing environment settings. To authenticate with a client secret, set {}. To authenticate with a certificate, set {}.".format(
                 ", ".join(EnvironmentVariables.CLIENT_SECRET_VARS), ", ".join(EnvironmentVariables.CERT_VARS)
             )
             raise AuthenticationError(message)
-        return self._credential.get_token(*scopes)
+        return self._credential.get_token(*scopes, **kwargs)
 
 
 class ManagedIdentityCredential(object):
@@ -106,7 +106,7 @@ class ManagedIdentityCredential(object):
         # type: (Dict[str, str]) -> Configuration
         pass
 
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
         pass
 
@@ -120,7 +120,7 @@ class TokenCredentialChain(object):
             raise ValueError("at least one credential is required")
         self._credentials = credentials
 
-    def get_token(self, *scopes):
+    def get_token(self, *scopes, **kwargs):
         # type: (*str) -> str
         """Attempts to get a token from each credential, in order, returning the first token.
            If no token is acquired, raises an exception listing error messages.
@@ -128,7 +128,7 @@ class TokenCredentialChain(object):
         history = []
         for credential in self._credentials:
             try:
-                return credential.get_token(*scopes)
+                return credential.get_token(*scopes, **kwargs)
             except AuthenticationError as ex:
                 history.append((credential, ex.message))
             except Exception as ex:  # pylint: disable=broad-except
