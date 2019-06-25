@@ -7,7 +7,6 @@
 #--------------------------------------------------------------------------
 import unittest
 
-from azure.keyvault import KeyVaultId, KeyVaultClient, KeyVaultAuthentication, AccessToken
 from azure.mgmt.hdinsight import HDInsightManagementClient
 from azure.mgmt.hdinsight.models import *
 from azure.mgmt.keyvault import KeyVaultManagementClient
@@ -17,6 +16,11 @@ from azure.mgmt.keyvault.models import SecretPermissions, KeyPermissions, Certif
 from azure.mgmt.storage.models import Kind
 from devtools_testutils import AzureMgmtTestCase, ResourceGroupPreparer, StorageAccountPreparer, FakeStorageAccount
 from mgmt_hdinsight_preparers import KeyVaultPreparer
+
+try:
+    from unittest.mock import Mock
+except ImportError:  # python < 3.3
+    from mock import Mock
 
 LOCATION = 'North Central US'
 
@@ -38,12 +42,6 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
         self.hdinsight_client = self.create_mgmt_client(HDInsightManagementClient)
         self.msi_client = self.create_mgmt_client(ManagedServiceIdentityClient)
         self.vault_mgmt_client = self.create_mgmt_client(KeyVaultManagementClient)
-        if self.is_live:
-            self.vault_client = self.create_basic_client(KeyVaultClient)
-        else:
-            def _auth_callback(server, resource, scope):
-                return AccessToken('Bearer', 'fake-token')
-            self.vault_client = KeyVaultClient(KeyVaultAuthentication(authorization_callback=_auth_callback))
 
         # sensitive test configs
         self.tenant_id = self.settings.TENANT_ID
@@ -59,6 +57,13 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
         self.cert_password = '123'
         self.cert_content = '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'
         self.workspace_id = '1d364e89-bb71-4503-aa3d-a23535aea7bd'
+
+    def create_vault_client(self, vault_uri):
+        if self.is_live:
+            credential = EnvironmentCredential()
+        else:
+            credential = Mock(get_token=lambda _: AccessToken("fake-token", 0))
+        return VaultClient(vault_uri, credential)
 
     @ResourceGroupPreparer(name_prefix='hdipy-', location=LOCATION)
     @StorageAccountPreparer(name_prefix='hdipy', location=LOCATION)
@@ -162,8 +167,9 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
         # create key
         vault_uri = vault.properties.vault_uri
         key_name = self.get_resource_name('hdipykey1')
-        created_bundle = self.vault_client.create_key(vault_uri, key_name, 'RSA')
-        vault_key = KeyVaultId.parse_key_id(created_bundle.key.kid)
+        
+        self.vault_client = create_vault_client(vault_uri)
+        created_key = self.vault_client.create_key(vault_uri, key_name, 'RSA')
 
         # create HDInsight cluster with Kafka disk encryption
         rg_name = resource_group.name
@@ -181,9 +187,9 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
             user_assigned_identities={msi_id: ClusterIdentityUserAssignedIdentitiesValue()}
         )
         create_params.properties.disk_encryption_properties = DiskEncryptionProperties(
-            vault_uri=vault_key.vault,
-            key_name=vault_key.name,
-            key_version=vault_key.version,
+            vault_uri=created_key.vault_url,
+            key_name=created_key.name,
+            key_version=created_key.version,
             msi_resource_id=msi_id
         )
         cluster = self.hdinsight_client.clusters.create(resource_group.name, cluster_name, create_params).result()

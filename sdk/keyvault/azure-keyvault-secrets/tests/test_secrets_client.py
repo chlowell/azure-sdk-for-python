@@ -8,7 +8,7 @@ import time
 
 from devtools_testutils import ResourceGroupPreparer
 from preparer import VaultClientPreparer
-from test_case import KeyVaultTestCase
+from secrets_test_case import KeyVaultTestCase
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
 

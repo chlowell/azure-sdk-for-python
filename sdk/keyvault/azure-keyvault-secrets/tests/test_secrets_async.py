@@ -7,7 +7,7 @@ import asyncio
 from azure.core.exceptions import ResourceNotFoundError
 from devtools_testutils import ResourceGroupPreparer
 from async_preparer import AsyncVaultClientPreparer
-from async_test_case import AsyncKeyVaultTestCase
+from async_secrets_test_case import AsyncKeyVaultTestCase
 
 
 from dateutil import parser as date_parse
