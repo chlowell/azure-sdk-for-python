@@ -17,6 +17,8 @@ from azure.mgmt.storage.models import Kind
 from devtools_testutils import AzureMgmtTestCase, ResourceGroupPreparer, StorageAccountPreparer, FakeStorageAccount
 from mgmt_hdinsight_preparers import KeyVaultPreparer
 
+from azure.keyvault.keys import KeyClient
+
 try:
     from unittest.mock import Mock
 except ImportError:  # python < 3.3
@@ -63,7 +65,7 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
             credential = EnvironmentCredential()
         else:
             credential = Mock(get_token=lambda _: AccessToken("fake-token", 0))
-        return VaultClient(vault_uri, credential)
+        return KeyClient(vault_uri, credential)
 
     @ResourceGroupPreparer(name_prefix='hdipy-', location=LOCATION)
     @StorageAccountPreparer(name_prefix='hdipy', location=LOCATION)
@@ -168,7 +170,7 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
         vault_uri = vault.properties.vault_uri
         key_name = self.get_resource_name('hdipykey1')
         
-        self.vault_client = create_vault_client(vault_uri)
+        self.vault_client = self.create_vault_client(vault_uri)
         created_key = self.vault_client.create_key(vault_uri, key_name, 'RSA')
 
         # create HDInsight cluster with Kafka disk encryption
@@ -187,7 +189,7 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
             user_assigned_identities={msi_id: ClusterIdentityUserAssignedIdentitiesValue()}
         )
         create_params.properties.disk_encryption_properties = DiskEncryptionProperties(
-            vault_uri=created_key.vault_url,
+            vault_uri=vault_uri,
             key_name=created_key.name,
             key_version=created_key.version,
             msi_resource_id=msi_id
@@ -203,10 +205,9 @@ class MgmtHDInsightTest(AzureMgmtTestCase):
 
         # create a new key
         new_key_name = self.get_resource_name('hdipykey2')
-        created_bundle = self.vault_client.create_key(vault_uri, new_key_name, 'RSA')
-        new_vault_key = KeyVaultId.parse_key_id(created_bundle.key.kid)
+        created_key = self.vault_client.create_key(vault_uri, new_key_name, 'RSA')
         rotate_params = ClusterDiskEncryptionParameters(
-            vault_uri=new_vault_key.vault,
+            vault_uri=vault_uri,
             key_name=new_vault_key.name,
             key_version=new_vault_key.version
         )
