@@ -136,7 +136,7 @@ class CryptoClientTests(AsyncKeyVaultTestCase):
         key = await key_client.create_rsa_key("encrypt-local", size=4096, hsm=False)
         crypto_client = key_client.get_cryptography_client(key)
 
-        for encrypt_algorithm in EncryptionAlgorithm:
+        for encrypt_algorithm in (a for a in EncryptionAlgorithm if not a.value.startswith("A")):
             key_id, algorithm, ciphertext, tag = await crypto_client.encrypt(encrypt_algorithm, self.plaintext)
             self.assertEqual(key_id, key.id)
 
@@ -153,7 +153,7 @@ class CryptoClientTests(AsyncKeyVaultTestCase):
         key = await key_client.create_rsa_key("wrap-local", size=4096, hsm=False)
         crypto_client = key_client.get_cryptography_client(key)
 
-        for wrap_algorithm in KeyWrapAlgorithm:
+        for wrap_algorithm in (a for a in KeyWrapAlgorithm if not a.value.startswith("A")):
             key_id, algorithm, encrypted_key = await crypto_client.wrap_key(wrap_algorithm, self.plaintext)
             self.assertEqual(key_id, key.id)
 
