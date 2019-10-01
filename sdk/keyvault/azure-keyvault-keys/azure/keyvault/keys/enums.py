@@ -33,3 +33,4 @@ class KeyType(str, Enum):
     rsa = "RSA"  #: RSA (https://tools.ietf.org/html/rfc3447)
     rsa_hsm = "RSA-HSM"  #: RSA with a private key which is not exportable from the HSM
     oct = "oct"  #: Octet sequence (used to represent symmetric keys)
+    oct_hsm = "oct-HSM"  #: Octet sequence (used to represent symmetric keys) which is not exportable from the HSM
