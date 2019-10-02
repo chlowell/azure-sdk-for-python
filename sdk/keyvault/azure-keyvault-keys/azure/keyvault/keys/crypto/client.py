@@ -156,6 +156,10 @@ class CryptographyClient(KeyVaultClientBase):
         :param bytes plaintext: bytes to encrypt
         :rtype: :class:`~azure.keyvault.keys.crypto.EncryptResult`
 
+        Keyword arguments
+            - **iv**: (bytes) Initialization vector for symmetric algorithms.
+            - **aad**: (bytes) Additional data to authenticate when encrypting with an authenticated algorithm.
+
         Example:
 
         .. code-block:: python
@@ -172,7 +176,8 @@ class CryptographyClient(KeyVaultClientBase):
         if local_key:
             if "encrypt" not in self._allowed_ops:
                 raise AzureError("This client doesn't have 'keys/encrypt' permission")
-            result = local_key.encrypt(plaintext, algorithm=algorithm.value)
+            tag = None  # TODO local symmetric encryption must return tag
+            ciphertext = local_key.encrypt(plaintext, algorithm=algorithm.value)
         else:
             result = self._client.encrypt(
                 vault_base_url=self._key_id.vault_url,
@@ -181,8 +186,13 @@ class CryptographyClient(KeyVaultClientBase):
                 algorithm=algorithm,
                 value=plaintext,
                 **kwargs
-            ).result
-        return EncryptResult(key_id=self.key_id, algorithm=algorithm, ciphertext=result, authentication_tag=None)
+            )
+            ciphertext = result.result
+            if hasattr(result, 'tag'):
+                tag = result.tag
+            else:
+                tag = None
+        return EncryptResult(key_id=self.key_id, algorithm=algorithm, ciphertext=ciphertext, authentication_tag=tag)
 
     @distributed_trace
     def decrypt(self, algorithm, ciphertext, **kwargs):
@@ -197,6 +207,11 @@ class CryptographyClient(KeyVaultClientBase):
         :param bytes ciphertext: encrypted bytes to decrypt
         :rtype: :class:`~azure.keyvault.keys.crypto.DecryptResult`
 
+        Keyword arguments
+            - **iv**: (bytes) Initialization vector for symmetric algorithms.
+            - **aad**: (bytes) Additional data to authenticate when decrypting with an authenticated algorithm.
+            - **tag**: Tag to authenticate when decrypting with an authenticated algorithm.
+
         Example:
 
         .. code-block:: python
@@ -208,10 +223,8 @@ class CryptographyClient(KeyVaultClientBase):
 
         """
 
-        authentication_data = kwargs.pop("authentication_data", None)
-        authentication_tag = kwargs.pop("authentication_tag", None)
-        if authentication_data and not authentication_tag:
-            raise ValueError("'authentication_tag' is required when 'authentication_data' is specified")
+        if "aad" in kwargs and "tag" not in kwargs:
+            raise ValueError("'tag' is required when 'aad' is specified")
 
         result = self._client.decrypt(
             vault_base_url=self._key_id.vault_url,
