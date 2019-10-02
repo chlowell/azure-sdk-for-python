@@ -171,6 +171,32 @@ class KeyClient(KeyVaultClientBase):
         )
 
     @distributed_trace
+    def create_octet_key(
+        self,
+        name,  # type: str
+        hsm,  # type: bool
+        size=None,  # type: Optional[int]
+        key_operations=None,  # type: Optional[List[str]]
+        enabled=None,  # type: Optional[bool]
+        expires=None,  # type: Optional[datetime]
+        not_before=None,  # type: Optional[datetime]
+        tags=None,  # type: Optional[Dict[str, str]]
+        **kwargs  # type: Any
+    ):
+        # type: (...) -> Key
+        return self.create_key(
+            name,
+            key_type="oct-HSM" if hsm else "oct",
+            size=size,
+            key_operations=key_operations,
+            enabled=enabled,
+            expires=expires,
+            not_before=not_before,
+            tags=tags,
+            **kwargs
+        )
+
+    @distributed_trace
     def create_ec_key(
         self,
         name,  # type: str
