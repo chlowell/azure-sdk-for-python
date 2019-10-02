@@ -135,10 +135,15 @@ class CryptographyClient(KeyVaultClientBase):
             if not key:
                 return None
 
-            if key.key_material.kty.lower().startswith("ec"):
+            kty = key.key_material.kty.lower()
+            if kty.startswith("ec"):
                 self._internal_key = EllipticCurveKey.from_jwk(key.key_material)
-            else:
+            elif kty.startswith("rsa"):
                 self._internal_key = RsaKey.from_jwk(key.key_material)
+            elif kty == "oct":
+                self._internal_key = None
+            else:
+                raise ValueError("Unsupported key type '{}'".format(key.key_material.kty))
 
         return self._internal_key
 
