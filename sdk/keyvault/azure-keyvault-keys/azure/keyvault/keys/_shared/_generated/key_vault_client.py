@@ -7,6 +7,7 @@ from azure.profiles.multiapiclient import MultiApiClientMixin
 
 from .v7_0.version import VERSION as V7_0_VERSION
 from .v2016_10_01.version import VERSION as V2016_10_01_VERSION
+from .v2019_09_10_preview.version import VERSION as V2019_09_10_PREVIEW_VERSION
 
 
 class KeyVaultClient(MultiApiClientMixin):
@@ -53,6 +54,11 @@ class KeyVaultClient(MultiApiClientMixin):
                 from .v7_0.aio._configuration_async import KeyVaultClientConfiguration as ImplConfig
             else:
                 from .v7_0._configuration import KeyVaultClientConfiguration as ImplConfig
+        elif api_version == V2019_09_10_PREVIEW_VERSION:
+            if aio:
+                from .v2019_09_10_preview.aio._configuration_async import KeyVaultClientConfiguration as ImplConfig
+            else:
+                from .v2019_09_10_preview._configuration import KeyVaultClientConfiguration as ImplConfig
         elif api_version == V2016_10_01_VERSION:
             if aio:
                 from .v2016_10_01.aio._configuration_async import KeyVaultClientConfiguration as ImplConfig
@@ -74,6 +80,8 @@ class KeyVaultClient(MultiApiClientMixin):
             from .v7_0 import models as impl_models
         elif api_version == V2016_10_01_VERSION:
             from .v2016_10_01 import models as impl_models
+        elif api_version == V2019_09_10_PREVIEW_VERSION:
+            from .v2019_09_10_preview import models as impl_models
         else:
             raise NotImplementedError("APIVersion {} is not available".format(api_version))
         return impl_models
@@ -104,6 +112,11 @@ class KeyVaultClient(MultiApiClientMixin):
                 from .v2016_10_01.aio import KeyVaultClient as ImplClient
             else:
                 from .v2016_10_01 import KeyVaultClient as ImplClient
+        elif api_version == V2019_09_10_PREVIEW_VERSION:
+            if self._aio:
+                from .v2019_09_10_preview.aio import KeyVaultClient as ImplClient
+            else:
+                from .v2019_09_10_preview import KeyVaultClient as ImplClient
         else:
             raise NotImplementedError("API version {} is not available".format(api_version))
 
