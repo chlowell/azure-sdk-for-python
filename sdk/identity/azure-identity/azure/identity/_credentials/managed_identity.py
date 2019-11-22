@@ -135,7 +135,9 @@ class ImdsCredential(_ManagedIdentityBase):
             # we send a request it would immediately reject (missing a required header),
             # setting a short timeout.
             try:
-                self._client.request_token(scopes, method="GET", connection_timeout=0.3, retry_total=0)
+                self._client.request_token(
+                    scopes, method="GET", connection_timeout=0.3, read_timeout=0.3, retry_total=0
+                )
                 self._endpoint_available = True
             except HttpResponseError:
                 # received a response, choked on it
