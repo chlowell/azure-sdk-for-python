@@ -3,12 +3,18 @@
 # Licensed under the MIT License.
 # ------------------------------------
 import time
-import os
 
 from devtools_testutils import AzureMgmtTestCase
+from azure_devtools.scenario_tests import JsonBodyMatcher
 
 
 class KeyVaultTestCase(AzureMgmtTestCase):
+    def __init__(self, *args, **kwargs):
+        attributes_only = kwargs.pop("match_attributes_only", False)
+        super(KeyVaultTestCase, self).__init__(
+            *args, additional_request_matchers=[JsonBodyMatcher(match_attributes_only=attributes_only)], **kwargs
+        )
+
     def setUp(self):
         self.list_test_size = 7
         super(KeyVaultTestCase, self).setUp()
