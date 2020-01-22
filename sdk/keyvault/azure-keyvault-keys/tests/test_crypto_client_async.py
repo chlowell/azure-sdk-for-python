@@ -79,7 +79,7 @@ class CryptoClientTests(AsyncKeyVaultTestCase):
         key_client = vault_client.keys
 
         imported_key = await self._import_test_key(key_client, key_name)
-        crypto_client = vault_client.get_cryptography_client(imported_key)
+        crypto_client = vault_client.get_cryptography_client(imported_key.id)
 
         result = await crypto_client.encrypt(EncryptionAlgorithm.rsa_oaep, self.plaintext)
         self.assertEqual(result.key_id, imported_key.id)
