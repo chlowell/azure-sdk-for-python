@@ -113,9 +113,9 @@ class ReplayableTest(IntegrationTestBase):  # pylint: disable=too-many-instance-
         )
         self.vcr.register_matcher('query', self._custom_request_query_matcher)
         additional_request_matchers = additional_request_matchers or []
-        for name, matcher in additional_request_matchers:
-            self.vcr.register_matcher(name, matcher)
-            self.vcr.match_on += (name,)
+        for matcher in additional_request_matchers:
+            self.vcr.register_matcher(matcher.__class__.__name__, matcher)
+            self.vcr.match_on += (matcher.__class__.__name__,)
 
 
         self.recording_file = os.path.join(

@@ -9,19 +9,21 @@ try:
 except ImportError:  # python < 3.3
     from mock import Mock  # type: ignore
 
+from azure_devtools.scenario_tests import JsonBodyMatcher
+import pytest
 from requests.structures import CaseInsensitiveDict
 
-from azure_devtools.scenario_tests import json_body_matcher
+
+def assert_match(r1, r2, attributes_only=False):
+    matcher = JsonBodyMatcher(match_attributes_only=attributes_only)
+    assert matcher(r1, r2)
+    assert matcher(r2, r1)
 
 
-def assert_match(r1, r2):
-    assert json_body_matcher(r1, r2)
-    assert json_body_matcher(r2, r1)
-
-
-def assert_not_match(r1, r2):
-    assert not json_body_matcher(r1, r2)
-    assert not json_body_matcher(r2, r1)
+def assert_not_match(r1, r2, attributes_only=False):
+    matcher = JsonBodyMatcher(match_attributes_only=attributes_only)
+    assert not matcher(r1, r2)
+    assert not matcher(r2, r1)
 
 
 def mock_request(content, content_type="application/json"):
@@ -33,6 +35,7 @@ def test_identical_json():
     r1 = mock_request(content)
     r2 = mock_request(content)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
 
 def test_ordering():
@@ -41,18 +44,22 @@ def test_ordering():
     r1 = mock_request('{"a": "b", "c": "d"}')
     r2 = mock_request('{"c": "d", "a": "b"}')
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     r1 = mock_request('{"a": "b", "c": {"d": "e"}}')
     r2 = mock_request('{"c": {"d": "e"}, "a": "b"}')
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     r1 = mock_request('{"a": "b", "c": {"d": ["e", "f"]}}')
     r2 = mock_request('{"c": {"d": ["e", "f"]}, "a": "b"}')
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     r1 = mock_request('{"a": "b", "c": {"d": ["e", [1,2,3]]}}')
     r2 = mock_request('{"c": {"d": ["e", [1,2,3]]}, "a": "b"}')
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
 
 def test_different_json():
@@ -60,6 +67,14 @@ def test_different_json():
     r1 = mock_request(json.dumps(content))
     r2 = mock_request(json.dumps(dict(content, b=3)))
     assert_not_match(r1, r2)
+    assert_not_match(r1, r2, attributes_only=True)
+
+
+def test_matching_attributes_only():
+    r1 = mock_request(json.dumps({1: "a", 2: "b"}))
+    r2 = mock_request(json.dumps({1: "c", 2: "d"}))
+    assert_not_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
 
 def test_not_json():
@@ -70,17 +85,20 @@ def test_not_json():
     r1 = mock_request(content, content_type=text_plain)
     r2 = mock_request(content, content_type=text_plain)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     # even should their content be different
     r1 = mock_request(content, content_type=text_plain)
     r2 = mock_request(content * 2, content_type=text_plain)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     # even should the content actually be json
     content = json.dumps({1: 2})
     r1 = mock_request(content, content_type=text_plain)
     r2 = mock_request(content, content_type=text_plain)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
 
 def test_invalid_json():
@@ -90,10 +108,12 @@ def test_invalid_json():
     r1 = mock_request(content)
     r2 = mock_request(content)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     r1 = mock_request('{"a": }')
     r2 = mock_request('{"b": }')
     assert_not_match(r1, r2)
+    assert_not_match(r1, r2, attributes_only=True)
 
 
 def test_only_one_body():
@@ -102,6 +122,7 @@ def test_only_one_body():
     r1 = mock_request(None)
     r2 = mock_request(json.dumps({1: 2}))
     assert_not_match(r1, r2)
+    assert_not_match(r1, r2, attributes_only=True)
 
 
 def test_no_bodies():
@@ -110,7 +131,9 @@ def test_no_bodies():
     r1 = mock_request(None, content_type=None)
     r2 = mock_request(None, content_type=None)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)
 
     r1 = mock_request(None)
     r2 = mock_request(None)
     assert_match(r1, r2)
+    assert_match(r1, r2, attributes_only=True)

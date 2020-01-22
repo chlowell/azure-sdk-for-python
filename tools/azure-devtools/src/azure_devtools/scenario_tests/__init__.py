@@ -13,7 +13,7 @@ from .recording_processors import (
     LargeRequestBodyProcessor, LargeResponseBodyProcessor, LargeResponseBodyReplacer,
     OAuthRequestResponsesFilter, DeploymentNameReplacer, GeneralNameReplacer, AccessTokenReplacer, RequestUrlNormalizer,
 )
-from .request_matchers import json_body_matcher
+from .request_matchers import JsonBodyMatcher
 from .utilities import create_random_name, get_sha1_hash
 
 __all__ = ['IntegrationTestBase', 'ReplayableTest', 'LiveTest',
@@ -25,5 +25,5 @@ __all__ = ['IntegrationTestBase', 'ReplayableTest', 'LiveTest',
            'OAuthRequestResponsesFilter', 'DeploymentNameReplacer', 'GeneralNameReplacer',
            'AccessTokenReplacer', 'RequestUrlNormalizer',
            'live_only', 'record_only',
-           'create_random_name', 'get_sha1_hash', 'json_body_matcher']
+           'create_random_name', 'get_sha1_hash', 'JsonBodyMatcher']
 __version__ = '0.6.2'
