@@ -14,6 +14,14 @@
     the persistent cache will raise an error. You may optionally configure the
     credential to fall back to an unencrypted cache by constructing it with
     keyword argument `allow_unencrypted_cache=True`.
+- `CertificateCredential` and `ClientSecretCredential` accept a new keyword
+  argument, `enable_persistent_cache`. When True, this configures these
+  credentials to use a persistent cache on supported platforms. By default,
+  these credentials continue to cache in memory only.
+  ([#11347](https://github.com/Azure/azure-sdk-for-python/issues/11347))
+  - Persistent caching for these credentials Linux shares the same requirements
+    detailed above on Linux, and these credentials also accept the keyword
+    argument `allow_unencrypted_cache`.
 
 ## 1.4.0b3 (2020-05-04)
 - `EnvironmentCredential` correctly initializes `UsernamePasswordCredential`
