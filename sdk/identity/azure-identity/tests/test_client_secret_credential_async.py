@@ -170,3 +170,56 @@ async def test_cache():
     token = await credential.get_token(scope)
     assert token == valid_token
     assert mock_send.call_count == 2
+
+
+def test_enable_persistent_cache():
+    """the credential should use the persistent cache only when given enable_persistent_cache=True"""
+
+    required_arguments = ("tenant-id", "client-id", "secret")
+    persistent_cache = "azure.identity._internal.persistent_cache"
+
+    # credential should default to an in memory cache
+    raise_when_called = Mock(side_effect=Exception("credential shouldn't attempt to load a persistent cache"))
+    with patch(persistent_cache + "._load_persistent_cache", raise_when_called):
+        ClientSecretCredential(*required_arguments)
+
+        # allowing an unencrypted cache doesn't count as opting in to the persistent cache
+        ClientSecretCredential(*required_arguments, allow_unencrypted_cache=True)
+
+    # keyword argument opts in to persistent cache
+    with patch(persistent_cache + ".msal_extensions") as mock_extensions:
+        ClientSecretCredential(*required_arguments, enable_persistent_cache=True)
+    assert mock_extensions.PersistedTokenCache.call_count == 1
+
+    # opting in on an unsupported platform raises an exception
+    with patch(persistent_cache + ".sys.platform", "commodore64"):
+        with pytest.raises(NotImplementedError):
+            ClientSecretCredential(*required_arguments, enable_persistent_cache=True)
+        with pytest.raises(NotImplementedError):
+            ClientSecretCredential(*required_arguments, enable_persistent_cache=True, allow_unencrypted_cache=True)
+
+
+@patch("azure.identity._internal.persistent_cache.sys.platform", "linux2")
+@patch("azure.identity._internal.persistent_cache.msal_extensions")
+def test_persistent_cache_linux(mock_extensions):
+    """The credential should use an unencrypted cache when encryption is unavailable and the user explicitly opts in.
+
+    This test was written when Linux was the only platform on which encryption may not be available.
+    """
+
+    required_arguments = ("tenant-id", "client-id", "secret")
+
+    # the credential should prefer an encrypted cache even when the user allows an unencrypted one
+    ClientSecretCredential(*required_arguments, enable_persistent_cache=True, allow_unencrypted_cache=True)
+    assert mock_extensions.PersistedTokenCache.called_with(mock_extensions.LibsecretPersistence)
+    mock_extensions.PersistedTokenCache.reset_mock()
+
+    # (when LibsecretPersistence's dependencies aren't available, constructing it raises ImportError)
+    mock_extensions.LibsecretPersistence = Mock(side_effect=ImportError)
+
+    # encryption unavailable, no opt in to unencrypted cache -> credential should raise
+    with pytest.raises(ValueError):
+        ClientSecretCredential(*required_arguments, enable_persistent_cache=True)
+
+    ClientSecretCredential(*required_arguments, enable_persistent_cache=True, allow_unencrypted_cache=True)
+    assert mock_extensions.PersistedTokenCache.called_with(mock_extensions.FilePersistence)

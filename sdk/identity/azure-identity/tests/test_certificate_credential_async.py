@@ -133,3 +133,64 @@ async def test_request_body(cert_path, cert_password):
     token = await cred.get_token("scope")
 
     assert token.token == access_token
+
+
+@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+def test_enable_persistent_cache(cert_path, cert_password):
+    """the credential should use the persistent cache only when given enable_persistent_cache=True"""
+
+    persistent_cache = "azure.identity._internal.persistent_cache"
+    required_arguments = ("tenant-id", "client-id", cert_path)
+
+    # credential should default to an in memory cache
+    raise_when_called = Mock(side_effect=Exception("credential shouldn't attempt to load a persistent cache"))
+    with patch(persistent_cache + "._load_persistent_cache", raise_when_called):
+        CertificateCredential(*required_arguments, password=cert_password)
+
+        # allowing an unencrypted cache doesn't count as opting in to the persistent cache
+        CertificateCredential(*required_arguments, password=cert_password, allow_unencrypted_cache=True)
+
+    # keyword argument opts in to persistent cache
+    with patch(persistent_cache + ".msal_extensions") as mock_extensions:
+        CertificateCredential(*required_arguments, password=cert_password, enable_persistent_cache=True)
+    assert mock_extensions.PersistedTokenCache.call_count == 1
+
+    # opting in on an unsupported platform raises an exception
+    with patch(persistent_cache + ".sys.platform", "commodore64"):
+        with pytest.raises(NotImplementedError):
+            CertificateCredential(*required_arguments, password=cert_password, enable_persistent_cache=True)
+        with pytest.raises(NotImplementedError):
+            CertificateCredential(
+                *required_arguments, password=cert_password, enable_persistent_cache=True, allow_unencrypted_cache=True
+            )
+
+
+@patch("azure.identity._internal.persistent_cache.sys.platform", "linux2")
+@patch("azure.identity._internal.persistent_cache.msal_extensions")
+@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+def test_persistent_cache_linux(mock_extensions, cert_path, cert_password):
+    """The credential should use an unencrypted cache when encryption is unavailable and the user explicitly opts in.
+
+    This test was written when Linux was the only platform on which encryption may not be available.
+    """
+
+    required_arguments = ("tenant-id", "client-id", cert_path)
+
+    # the credential should prefer an encrypted cache even when the user allows an unencrypted one
+    CertificateCredential(
+        *required_arguments, password=cert_password, enable_persistent_cache=True, allow_unencrypted_cache=True
+    )
+    assert mock_extensions.PersistedTokenCache.called_with(mock_extensions.LibsecretPersistence)
+    mock_extensions.PersistedTokenCache.reset_mock()
+
+    # (when LibsecretPersistence's dependencies aren't available, constructing it raises ImportError)
+    mock_extensions.LibsecretPersistence = Mock(side_effect=ImportError)
+
+    # encryption unavailable, no opt in to unencrypted cache -> credential should raise
+    with pytest.raises(ValueError):
+        CertificateCredential(*required_arguments, password=cert_password, enable_persistent_cache=True)
+
+    CertificateCredential(
+        *required_arguments, password=cert_password, enable_persistent_cache=True, allow_unencrypted_cache=True
+    )
+    assert mock_extensions.PersistedTokenCache.called_with(mock_extensions.FilePersistence)
