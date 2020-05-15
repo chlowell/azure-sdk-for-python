@@ -94,7 +94,7 @@ class AadClientBase(ABC):
         return AccessToken(response_copy["access_token"], expires_on)
 
     def _get_auth_code_request(self, scopes, code, redirect_uri, client_secret=None):
-        # type: (str, str, Sequence[str], Optional[str]) -> HttpRequest
+        # type: (Sequence[str], str, str, Optional[str]) -> HttpRequest
 
         data = {
             "client_id": self._client_id,
@@ -128,7 +128,7 @@ class AadClientBase(ABC):
         return request
 
     def _get_refresh_token_request(self, scopes, refresh_token):
-        # type: (str, Sequence[str]) -> HttpRequest
+        # type: (Sequence[str], str) -> HttpRequest
 
         data = {
             "grant_type": "refresh_token",
