@@ -23,24 +23,7 @@ except ImportError:
 
 if TYPE_CHECKING:
     # pylint:disable=unused-import
-    from typing import Any, Optional, Union
-
-
-class ClientSecretCredentialBase(object):
-    """Sans I/O base for client secret credentials"""
-
-    def __init__(self, tenant_id, client_id, secret, **kwargs):  # pylint:disable=unused-argument
-        # type: (str, str, str, **Any) -> None
-        if not client_id:
-            raise ValueError("client_id should be the id of an Azure Active Directory application")
-        if not secret:
-            raise ValueError("secret should be an Azure Active Directory application's client secret")
-        if not tenant_id:
-            raise ValueError(
-                "tenant_id should be an Azure Active Directory tenant's id (also called its 'directory id')"
-            )
-        self._form_data = {"client_id": client_id, "client_secret": secret, "grant_type": "client_credentials"}
-        super(ClientSecretCredentialBase, self).__init__()
+    from typing import Any
 
 
 class CertificateCredentialBase(ABC):

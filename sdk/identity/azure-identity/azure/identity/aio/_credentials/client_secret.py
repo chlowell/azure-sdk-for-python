@@ -5,15 +5,14 @@
 from typing import TYPE_CHECKING
 
 from .base import AsyncCredentialBase
-from .._authn_client import AsyncAuthnClient
-from ..._base import ClientSecretCredentialBase
+from .._internal import AadClient
 
 if TYPE_CHECKING:
     from typing import Any
     from azure.core.credentials import AccessToken
 
 
-class ClientSecretCredential(ClientSecretCredentialBase, AsyncCredentialBase):
+class ClientSecretCredential(AsyncCredentialBase):
     """Authenticates as a service principal using a client ID and client secret.
 
     :param str tenant_id: ID of the service principal's tenant. Also called its 'directory' ID.
@@ -26,8 +25,16 @@ class ClientSecretCredential(ClientSecretCredentialBase, AsyncCredentialBase):
     """
 
     def __init__(self, tenant_id: str, client_id: str, client_secret: str, **kwargs: "Any") -> None:
-        super(ClientSecretCredential, self).__init__(tenant_id, client_id, client_secret, **kwargs)
-        self._client = AsyncAuthnClient(tenant=tenant_id, **kwargs)
+        if not client_id:
+            raise ValueError("client_id should be the id of an Azure Active Directory application")
+        if not client_secret:
+            raise ValueError("secret should be an Azure Active Directory application's client secret")
+        if not tenant_id:
+            raise ValueError(
+                "tenant_id should be an Azure Active Directory tenant's id (also called its 'directory id')"
+            )
+        self._client = AadClient(tenant_id, client_id, **kwargs)
+        self._secret = client_secret
 
     async def __aenter__(self):
         await self._client.__aenter__()
@@ -38,7 +45,7 @@ class ClientSecretCredential(ClientSecretCredentialBase, AsyncCredentialBase):
 
         await self._client.__aexit__()
 
-    async def get_token(self, *scopes: str, **kwargs: "Any") -> "AccessToken":  # pylint:disable=unused-argument
+    async def get_token(self, *scopes: str, **kwargs: "Any") -> "AccessToken":
         """Asynchronously request an access token for `scopes`.
 
         .. note:: This method is called by Azure SDK clients. It isn't intended for use in application code.
@@ -52,8 +59,7 @@ class ClientSecretCredential(ClientSecretCredentialBase, AsyncCredentialBase):
         if not scopes:
             raise ValueError("'get_token' requires at least one scope")
 
-        token = self._client.get_cached_token(scopes)
+        token = self._client.get_cached_access_token(scopes)
         if not token:
-            data = dict(self._form_data, scope=" ".join(scopes))
-            token = await self._client.request_token(scopes, form_data=data)
-        return token  # type: ignore
+            token = await self._client.obtain_token_by_client_secret(scopes, self._secret, **kwargs)
+        return token
