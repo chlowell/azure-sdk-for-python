@@ -2,9 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
-from azure.identity._internal.service_principal_cache import ServicePrincipalCacheMixin
-
-from .._internal import AadClient
+from .._internal import AadClient, ClientSecretCredentialBase
 
 try:
     from typing import TYPE_CHECKING
@@ -17,7 +15,7 @@ if TYPE_CHECKING:
     from azure.core.credentials import AccessToken
 
 
-class ClientSecretCredential(ServicePrincipalCacheMixin):
+class ClientSecretCredential(ClientSecretCredentialBase):
     """Authenticates as a service principal using a client ID and client secret.
 
     :param str tenant_id: ID of the service principal's tenant. Also called its 'directory' ID.
@@ -32,21 +30,6 @@ class ClientSecretCredential(ServicePrincipalCacheMixin):
     :keyword bool allow_unencrypted_cache: if True, the credential will fall back to a plaintext cache on platforms
           where encryption is unavailable. Default to False. Has no effect when `enable_persistent_cache` is False.
     """
-
-    def __init__(self, tenant_id, client_id, client_secret, **kwargs):
-        # type: (str, str, str, **Any) -> None
-        if not client_id:
-            raise ValueError("client_id should be the id of an Azure Active Directory application")
-        if not client_secret:
-            raise ValueError("secret should be an Azure Active Directory application's client secret")
-        if not tenant_id:
-            raise ValueError(
-                "tenant_id should be an Azure Active Directory tenant's id (also called its 'directory id')"
-            )
-
-        self._client = AadClient(tenant_id, client_id, **kwargs)
-        self._secret = client_secret
-        super(ClientSecretCredential, self).__init__(client_id, **kwargs)
 
     def get_token(self, *scopes, **kwargs):
         # type: (*str, **Any) -> AccessToken
@@ -67,3 +50,6 @@ class ClientSecretCredential(ServicePrincipalCacheMixin):
         if not token:
             token = self._client.obtain_token_by_client_secret(scopes, self._secret, **kwargs)
         return token
+
+    def _get_auth_client(self, tenant_id, client_id, **kwargs):
+        return AadClient(tenant_id, client_id, **kwargs)
