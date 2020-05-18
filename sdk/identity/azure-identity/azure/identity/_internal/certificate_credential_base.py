@@ -5,7 +5,9 @@
 import abc
 
 import six
-from azure.identity._internal import AadClientCertificate
+
+from . import AadClientCertificate
+from .service_principal_cache import ServicePrincipalCacheMixin
 
 try:
     ABC = abc.ABC
@@ -22,7 +24,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 
-class CertificateCredentialBase(ABC):
+class CertificateCredentialBase(ABC, ServicePrincipalCacheMixin):
     def __init__(self, tenant_id, client_id, certificate_path, **kwargs):
         # type: (str, str, str, **Any) -> None
         if not certificate_path:
@@ -30,7 +32,7 @@ class CertificateCredentialBase(ABC):
                 "'certificate_path' must be the path to a PEM file containing an x509 certificate and its private key"
             )
 
-        super(CertificateCredentialBase, self).__init__()
+        super(CertificateCredentialBase, self).__init__(client_id, **kwargs)
 
         password = kwargs.pop("password", None)
         if isinstance(password, six.text_type):
