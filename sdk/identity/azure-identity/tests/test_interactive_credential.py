@@ -46,6 +46,32 @@ class MockCredential(InteractiveCredential):
         return super(MockCredential, self)._get_app()
 
 
+def test_connection_configuration():
+    """the credential should honor connection configuration kwargs"""
+
+    class TestCredential(InteractiveCredential):
+        def __init__(self, **kwargs):
+            super(TestCredential, self).__init__(client_id="...", **kwargs)
+
+        def _request_token(self, *_, **__):
+            pass
+
+    expected_kwargs = {
+        "connection_cert": "these",
+        "connection_data_block_size": "are",
+        "connection_timeout": "arbitrary",
+        "connection_verify": "test",
+        "read_timeout": "values",
+    }
+
+    with patch("azure.core.pipeline.transport._requests_basic.ConnectionConfiguration") as mock_configuration:
+        TestCredential(**expected_kwargs)
+
+    assert mock_configuration.call_count == 1
+    _, actual_kwargs = mock_configuration.call_args_list[0]
+    assert actual_kwargs == expected_kwargs
+
+
 def test_no_scopes():
     """The credential should raise when get_token is called with no scopes"""
 

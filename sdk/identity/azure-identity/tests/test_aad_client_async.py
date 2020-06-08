@@ -208,3 +208,22 @@ async def test_evicts_invalid_refresh_token():
     assert transport.send.call_count == 1
     assert len(cache.find(TokenCache.CredentialType.REFRESH_TOKEN)) == 1
     assert len(cache.find(TokenCache.CredentialType.REFRESH_TOKEN, query={"secret": invalid_token})) == 0
+
+
+async def test_connection_configuration():
+    """the client should honor connection configuration kwargs"""
+
+    expected_kwargs = {
+        "connection_cert": "these",
+        "connection_data_block_size": "are",
+        "connection_timeout": "arbitrary",
+        "connection_verify": "test",
+        "read_timeout": "values",
+    }
+
+    with patch("azure.core.pipeline.transport._aiohttp.ConnectionConfiguration") as mock_configuration:
+        AadClient("tenant id", "client id", **expected_kwargs)
+
+    assert mock_configuration.call_count == 1
+    _, actual_kwargs = mock_configuration.call_args_list[0]
+    assert actual_kwargs == expected_kwargs
