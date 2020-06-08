@@ -101,7 +101,7 @@ class AadClient(AadClientBase):
         if not transport:
             from azure.core.pipeline.transport import AioHttpTransport
 
-            transport = AioHttpTransport(configuration=config)
+            transport = AioHttpTransport(**kwargs)
 
         return AsyncPipeline(transport=transport, policies=policies)
 

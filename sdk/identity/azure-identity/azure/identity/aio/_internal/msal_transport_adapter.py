@@ -50,7 +50,7 @@ class MsalTransportAdapter:
                 DistributedTracingPolicy(**kwargs),
                 HttpLoggingPolicy(**kwargs),
             ]
-        self._transport = transport or AioHttpTransport(configuration=config)
+        self._transport = transport or AioHttpTransport(**kwargs)
         self._pipeline = AsyncPipeline(transport=self._transport, policies=policies)
 
     async def __aenter__(self):
