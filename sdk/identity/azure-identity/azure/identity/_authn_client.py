@@ -191,15 +191,17 @@ class AuthnClient(AuthnClientBase):
     ):
         # type: (...) -> None
         config = config or self._create_config(**kwargs)
-        policies = policies or [
-            ContentDecodePolicy(),
-            config.user_agent_policy,
-            config.proxy_policy,
-            config.retry_policy,
-            config.logging_policy,
-            DistributedTracingPolicy(**kwargs),
-            HttpLoggingPolicy(**kwargs),
-        ]
+
+        if policies is None:  # [] is a valid policy list
+            policies = [
+                ContentDecodePolicy(),
+                config.user_agent_policy,
+                config.proxy_policy,
+                config.retry_policy,
+                config.logging_policy,
+                DistributedTracingPolicy(**kwargs),
+                HttpLoggingPolicy(**kwargs),
+            ]
         if not transport:
             transport = RequestsTransport(**kwargs)
         self._pipeline = Pipeline(transport=transport, policies=policies)

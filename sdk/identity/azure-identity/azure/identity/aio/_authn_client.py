@@ -40,15 +40,16 @@ class AsyncAuthnClient(AuthnClientBase):  # pylint:disable=async-client-bad-name
         **kwargs: "Any"
     ) -> None:
         config = config or self._create_config(**kwargs)
-        policies = policies or [
-            ContentDecodePolicy(),
-            config.user_agent_policy,
-            config.proxy_policy,
-            config.retry_policy,
-            config.logging_policy,
-            DistributedTracingPolicy(**kwargs),
-            HttpLoggingPolicy(**kwargs),
-        ]
+        if policies is None:  # [] is a valid policy list
+            policies = [
+                ContentDecodePolicy(),
+                config.user_agent_policy,
+                config.proxy_policy,
+                config.retry_policy,
+                config.logging_policy,
+                DistributedTracingPolicy(**kwargs),
+                HttpLoggingPolicy(**kwargs),
+            ]
         if not transport:
             transport = AioHttpTransport(**kwargs)
         self._pipeline = AsyncPipeline(transport=transport, policies=policies)

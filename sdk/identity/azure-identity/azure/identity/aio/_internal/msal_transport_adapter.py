@@ -41,14 +41,15 @@ class MsalTransportAdapter:
     ) -> None:
 
         config = config or self._create_config(**kwargs)
-        policies = policies or [
-            config.user_agent_policy,
-            config.proxy_policy,
-            config.retry_policy,
-            config.logging_policy,
-            DistributedTracingPolicy(**kwargs),
-            HttpLoggingPolicy(**kwargs),
-        ]
+        if policies is None:  # [] is a valid policy list
+            policies = [
+                config.user_agent_policy,
+                config.proxy_policy,
+                config.retry_policy,
+                config.logging_policy,
+                DistributedTracingPolicy(**kwargs),
+                HttpLoggingPolicy(**kwargs),
+            ]
         self._transport = transport or AioHttpTransport(configuration=config)
         self._pipeline = AsyncPipeline(transport=self._transport, policies=policies)
 

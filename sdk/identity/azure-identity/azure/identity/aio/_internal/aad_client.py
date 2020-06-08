@@ -89,14 +89,15 @@ class AadClient(AadClientBase):
         **kwargs: "Any"
     ) -> AsyncPipeline:
         config = config or _create_config(**kwargs)
-        policies = policies or [
-            config.user_agent_policy,
-            config.proxy_policy,
-            config.retry_policy,
-            config.logging_policy,
-            DistributedTracingPolicy(**kwargs),
-            HttpLoggingPolicy(**kwargs),
-        ]
+        if policies is None:  # [] is a valid policy list
+            policies = [
+                config.user_agent_policy,
+                config.proxy_policy,
+                config.retry_policy,
+                config.logging_policy,
+                DistributedTracingPolicy(**kwargs),
+                HttpLoggingPolicy(**kwargs),
+            ]
         if not transport:
             from azure.core.pipeline.transport import AioHttpTransport
 
