@@ -194,8 +194,8 @@ class SecretClientTests(KeyVaultTestCase):
             expected[secret_name] = client.set_secret(secret_name, secret_value)
 
         # delete them
-        for secret_name in expected.keys():
-            client.begin_delete_secret(secret_name).wait()
+        for operation in [client.begin_delete_secret(secret_name) for secret_name in expected.keys()]:
+            operation.wait()
 
         # validate list deleted secrets with attributes
         for deleted_secret in client.list_deleted_secrets():
@@ -239,16 +239,16 @@ class SecretClientTests(KeyVaultTestCase):
             secrets[secret_name] = client.set_secret(secret_name, secret_value)
 
         # delete all secrets
-        for secret_name in secrets.keys():
-            client.begin_delete_secret(secret_name).wait()
+        for operation in [client.begin_delete_secret(secret_name) for secret_name in secrets.keys()]:
+            operation.wait()
 
         # validate all our deleted secrets are returned by list_deleted_secrets
         deleted = [s.name for s in client.list_deleted_secrets()]
         self.assertTrue(all(s in deleted for s in secrets.keys()))
 
         # recover select secrets
-        for secret_name in secrets.keys():
-            client.begin_recover_deleted_secret(secret_name).wait()
+        for operation in [client.begin_recover_deleted_secret(secret_name) for secret_name in secrets.keys()]:
+            operation.wait()
 
         # validate the recovered secrets exist
         for secret_name in secrets.keys():
@@ -268,8 +268,8 @@ class SecretClientTests(KeyVaultTestCase):
             secrets[secret_name] = client.set_secret(secret_name, secret_value)
 
         # delete all secrets
-        for secret_name in secrets.keys():
-            client.begin_delete_secret(secret_name).wait()
+        for operation in [client.begin_delete_secret(secret_name) for secret_name in secrets.keys()]:
+            operation.wait()
 
         # validate all our deleted secrets are returned by list_deleted_secrets
         deleted = [s.name for s in client.list_deleted_secrets()]

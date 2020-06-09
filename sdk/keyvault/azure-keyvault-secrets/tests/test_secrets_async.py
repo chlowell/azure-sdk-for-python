@@ -164,8 +164,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
             expected[secret_name] = await client.set_secret(secret_name, secret_value)
 
         # delete them
-        for secret_name in expected.keys():
-            await client.delete_secret(secret_name)
+        await asyncio.gather(*[client.delete_secret(secret_name) for secret_name in expected.keys()])
 
         # validate list deleted secrets with attributes
         async for deleted_secret in client.list_deleted_secrets():
@@ -238,16 +237,14 @@ class KeyVaultSecretTest(KeyVaultTestCase):
             secrets[secret_name] = await client.set_secret(secret_name, secret_value)
 
         # delete all secrets
-        for secret_name in secrets.keys():
-            await client.delete_secret(secret_name)
+        await asyncio.gather(*[client.delete_secret(secret_name) for secret_name in secrets.keys()])
 
         # validate all our deleted secrets are returned by list_deleted_secrets
         async for deleted_secret in client.list_deleted_secrets():
             assert deleted_secret.name in secrets
 
         # recover select secrets
-        for secret_name in secrets.keys():
-            await client.recover_deleted_secret(secret_name)
+        await asyncio.gather(*[client.recover_deleted_secret(secret_name) for secret_name in secrets.keys()])
 
         # validate the recovered secrets exist
         await self._poll_until_no_exception(
@@ -267,8 +264,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
             secrets[secret_name] = await client.set_secret(secret_name, secret_value)
 
         # delete all secrets
-        for secret_name in secrets.keys():
-            await client.delete_secret(secret_name)
+        await asyncio.gather(*[client.delete_secret(secret_name) for secret_name in secrets.keys()])
 
         # validate all our deleted secrets are returned by list_deleted_secrets
         async for deleted_secret in client.list_deleted_secrets():
