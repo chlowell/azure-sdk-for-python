@@ -278,12 +278,12 @@ class KeyClientTests(KeyVaultTestCase):
         # create keys
         for i in range(self.list_test_size):
             key_name = "key{}".format(i)
-            key_value = "value{}".format(i)
             expected[key_name] = client.create_key(key_name, "RSA")
 
         # delete them
-        for key_name in expected.keys():
-            client.begin_delete_key(key_name).wait()
+        operations = [client.begin_delete_key(key_name) for key_name in expected.keys()]
+        for operation in operations:
+            operation.wait()
 
         # validate list deleted keys with attributes
         for deleted_key in client.list_deleted_keys():
@@ -302,8 +302,6 @@ class KeyClientTests(KeyVaultTestCase):
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     def test_recover(self, client, **kwargs):
-        self.assertIsNotNone(client)
-
         # create keys
         keys = {}
         for i in range(self.list_test_size):
@@ -311,8 +309,9 @@ class KeyClientTests(KeyVaultTestCase):
             keys[key_name] = client.create_key(key_name, "RSA")
 
         # delete them
-        for key_name in keys.keys():
-            client.begin_delete_key(key_name).wait()
+        operations = [client.begin_delete_key(key_name) for key_name in keys.keys()]
+        for operation in operations:
+            operation.wait()
 
         # validate the deleted keys are returned by list_deleted_keys
         deleted = [s.name for s in client.list_deleted_keys()]
@@ -336,8 +335,9 @@ class KeyClientTests(KeyVaultTestCase):
             client.create_key(name, "RSA")
 
         # delete them
-        for key_name in key_names:
-            client.begin_delete_key(key_name).wait()
+        operations = [client.begin_delete_key(key_name) for key_name in key_names]
+        for operation in operations:
+            operation.wait()
 
         # validate all our deleted keys are returned by list_deleted_keys
         deleted = [k.name for k in client.list_deleted_keys()]

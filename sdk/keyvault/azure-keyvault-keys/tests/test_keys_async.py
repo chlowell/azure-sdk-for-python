@@ -279,8 +279,7 @@ class KeyVaultKeyTest(KeyVaultTestCase):
             expected[key_name] = await client.create_key(key_name, key_type)
 
         # delete all keys
-        for key_name in expected.keys():
-            await client.delete_key(key_name)
+        await asyncio.gather(*[client.delete_key(key_name) for key_name in expected.keys()])
 
         # validate list deleted keys with attributes
         async for deleted_key in client.list_deleted_keys():
@@ -333,13 +332,12 @@ class KeyVaultKeyTest(KeyVaultTestCase):
             keys[key_name] = await client.create_key(key_name, "RSA")
 
         # delete them
-        for key_name in keys.keys():
-            await client.delete_key(key_name)
+        await asyncio.gather(*[client.delete_key(key_name) for key_name in keys.keys()])
 
         # recover them
-        for key_name in keys.keys():
-            recovered_key = await client.recover_deleted_key(key_name)
-            expected_key = keys[key_name]
+        recovered = await asyncio.gather(*[client.recover_deleted_key(key_name) for key_name in keys.keys()])
+        for recovered_key in recovered:
+            expected_key = keys[recovered_key.name]
             self._assert_key_attributes_equal(expected_key.properties, recovered_key.properties)
 
         # validate the recovered keys
@@ -354,8 +352,6 @@ class KeyVaultKeyTest(KeyVaultTestCase):
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     async def test_purge(self, client, **kwargs):
-        self.assertIsNotNone(client)
-
         keys = {}
 
         # create keys
@@ -364,8 +360,7 @@ class KeyVaultKeyTest(KeyVaultTestCase):
             keys[key_name] = await client.create_key(key_name, "RSA")
 
         # delete them
-        for key_name in keys.keys():
-            await client.delete_key(key_name)
+        await asyncio.gather(*[client.delete_key(key_name) for key_name in keys.keys()])
 
         # purge them
         for key_name in keys.keys():
