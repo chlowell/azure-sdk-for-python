@@ -33,6 +33,10 @@ class EnvironmentVariables:
     MSI_SECRET = "MSI_SECRET"
     AZURE_AUTHORITY_HOST = "AZURE_AUTHORITY_HOST"
 
+    # for App Service managed identity
+    IDENTITY_ENDPOINT = "IDENTITY_ENDPOINT"
+    IDENTITY_HEADER = "IDENTITY_HEADER"
+
 
 class Endpoints:
     # https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
