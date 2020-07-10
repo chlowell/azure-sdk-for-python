@@ -5,12 +5,9 @@
 import asyncio
 import functools
 import codecs
-import hashlib
-import os
 import logging
 import json
 
-from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.keys import JsonWebKey
 from azure.keyvault.keys.aio import KeyClient
 from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
@@ -125,12 +122,14 @@ class KeyVaultKeyTest(KeyVaultTestCase):
         self.assertNotEqual(key.properties.updated_on, key_bundle.properties.updated_on)
         return key_bundle
 
-    async def _validate_key_list(self, keys, expected):
-        async for key in keys:
-            if key.name in expected.keys():
-                self._assert_key_attributes_equal(expected[key.name].properties, key)
-                del expected[key.name]
-        self.assertEqual(len(expected), 0)
+    def assert_key_lists_equal(self, a, b):
+        assert len(a) == len(b)
+        for actual, expected in zip(sorted(a, key=lambda key: key.id), sorted(b, key=lambda key: key.id)):
+            assert actual.id == expected.id
+            assert actual.key_type == expected.key_type
+            assert sorted(actual.key_operations) == sorted(expected.key_operations)
+            self._assert_jwks_equal(actual.key, expected.key)
+            self._assert_key_attributes_equal(actual.properties, expected.properties)
 
     async def _import_test_key(self, client, name):
         def _to_bytes(hex):
@@ -323,48 +322,38 @@ class KeyVaultKeyTest(KeyVaultTestCase):
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     async def test_recover(self, client, **kwargs):
-        self.assertIsNotNone(client)
-        keys = {}
-
         # create keys
-        for i in range(self.list_test_size):
-            key_name = "key{}".format(i)
-            keys[key_name] = await client.create_key(key_name, "RSA")
+        key_names = [self.get_replayable_random_resource_name(str(i)) for i in range(self.list_test_size)]
+        created = await asyncio.gather(*[client.create_rsa_key(name) for name in key_names])
+        assert sorted(key_names) == sorted([key.name for key in created])
 
         # delete them
-        await asyncio.gather(*[client.delete_key(key_name) for key_name in keys.keys()])
+        deleted = await asyncio.gather(*[client.delete_key(key.name) for key in created])
+        self.assert_key_lists_equal(created, deleted)
 
         # recover them
-        recovered = await asyncio.gather(*[client.recover_deleted_key(key_name) for key_name in keys.keys()])
-        for recovered_key in recovered:
-            expected_key = keys[recovered_key.name]
-            self._assert_key_attributes_equal(expected_key.properties, recovered_key.properties)
+        recovered = await asyncio.gather(*[client.recover_deleted_key(key.name) for key in deleted])
+        self.assert_key_lists_equal(deleted, recovered)
 
-        # validate the recovered keys
-        expected = {k: v for k, v in keys.items()}
-        actual = {}
-        for k in expected.keys():
-            actual[k] = await client.get_key(k)
-
-        self.assertEqual(len(set(expected.keys()) & set(actual.keys())), len(expected))
+        # validate all created keys were recovered
+        final = await asyncio.gather(*[client.get_key(key.name) for key in created])
+        self.assert_key_lists_equal(final, created)
 
     @ResourceGroupPreparer(random_name_enabled=True)
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     async def test_purge(self, client, **kwargs):
-        keys = {}
-
         # create keys
-        for i in range(self.list_test_size):
-            key_name = "key{}".format(i)
-            keys[key_name] = await client.create_key(key_name, "RSA")
+        key_names = [self.get_replayable_random_resource_name(str(i)) for i in range(self.list_test_size)]
+        created = await asyncio.gather(*[client.create_rsa_key(name) for name in key_names])
+        assert sorted(key_names) == sorted([key.name for key in created])
 
         # delete them
-        await asyncio.gather(*[client.delete_key(key_name) for key_name in keys.keys()])
+        deleted = await asyncio.gather(*[client.delete_key(key.name) for key in created])
+        self.assert_key_lists_equal(created, deleted)
 
         # purge them
-        for key_name in keys.keys():
-            await client.purge_deleted_key(key_name)
+        await asyncio.gather(*[client.purge_deleted_key(key.name) for key in deleted])
 
     @ResourceGroupPreparer(random_name_enabled=True)
     @KeyVaultPreparer()

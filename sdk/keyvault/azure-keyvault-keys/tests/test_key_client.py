@@ -305,12 +305,11 @@ class KeyClientTests(KeyVaultTestCase):
         # create keys
         keys = {}
         for i in range(self.list_test_size):
-            key_name = "key{}".format(i)
+            key_name = self.get_replayable_random_resource_name("key" + str(i))
             keys[key_name] = client.create_key(key_name, "RSA")
 
         # delete them
-        operations = [client.begin_delete_key(key_name) for key_name in keys.keys()]
-        for operation in operations:
+        for operation in [client.begin_delete_key(key_name) for key_name in keys.keys()]:
             operation.wait()
 
         # validate the deleted keys are returned by list_deleted_keys
@@ -318,9 +317,10 @@ class KeyClientTests(KeyVaultTestCase):
         self.assertTrue(all(s in deleted for s in keys.keys()))
 
         # recover the keys
-        for key_name in keys.keys():
-            recovered_key = client.begin_recover_deleted_key(key_name).result()
-            expected_key = keys[key_name]
+        for operation in [client.begin_recover_deleted_key(key_name) for key_name in keys.keys()]:
+            operation.wait()
+            recovered_key = operation.result()
+            expected_key = keys[recovered_key.name]
             self._assert_key_attributes_equal(expected_key.properties, recovered_key.properties)
 
     @ResourceGroupPreparer(random_name_enabled=True)
@@ -340,8 +340,8 @@ class KeyClientTests(KeyVaultTestCase):
             operation.wait()
 
         # validate all our deleted keys are returned by list_deleted_keys
-        deleted = [k.name for k in client.list_deleted_keys()]
-        self.assertTrue(all(n in deleted for n in key_names))
+        deleted_names = [k.name for k in client.list_deleted_keys()]
+        assert sorted(deleted_names) == sorted(key_names)
 
         # purge them
         for key_name in key_names:
@@ -352,8 +352,8 @@ class KeyClientTests(KeyVaultTestCase):
             )
 
         # validate none are returned by list_deleted_keys
-        deleted = [s.name for s in client.list_deleted_keys()]
-        self.assertTrue(not any(s in deleted for s in key_names))
+        deleted_names = [s.name for s in client.list_deleted_keys()]
+        self.assertTrue(not any(name in deleted_names for name in key_names))
 
     @ResourceGroupPreparer(random_name_enabled=True)
     @KeyVaultPreparer()
