@@ -5,8 +5,9 @@
 import time
 from typing import TYPE_CHECKING
 
+import six
 from azure.core.configuration import Configuration
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ClientAuthenticationError
 from azure.core.pipeline import Pipeline
 from azure.core.pipeline.policies import (
     RetryPolicy,
@@ -29,30 +30,46 @@ if TYPE_CHECKING:
 
 
 class ManagedIdentityClient(ManagedIdentityClientBase):
-    def __init__(self):
-        super(ManagedIdentityClient, self).__init__(retry_policy=RetryPolicy)
-
     def request_token(self, scope):
         # type: (str) -> AccessToken
-        if self._identity_available is None:
+        if self._type is None:
             self._probe_imds()
 
-        if not self._identity_available:
+        if self._type == ManagedIdentityType.unavailable:
             raise CredentialUnavailableError(
                 "ManagedIdentityCredential authentication unavailable, no managed identity endpoint found."
             )
 
-        request = self._get_request(scope)
-        now = int(time.time())
-        response = self._pipeline.run(request)
+        token = self.get_cached_access_token(scope)
+        if not token:
+            request = self._get_request(scope)
+            now = int(time.time())
+            try:
+                response = self._pipeline.run(request)
+                token = self._process_response(response.http_response, now)
+            except HttpResponseError as ex:
+                if self._type == ManagedIdentityType.IMDS and ex.status_code == 400:
+                    self._type = ManagedIdentityType.unavailable
+                    message = "ManagedIdentityCredential authentication unavailable. "
+                    if self._identity_config:
+                        message += "The requested identity has not been assigned to this resource."
+                    else:
+                        message += "No identity has been assigned to this resource."
+                    six.raise_from(CredentialUnavailableError(message=message, response=ex.response), ex)
 
-        return self._process_response(response, now)
+                six.raise_from(ClientAuthenticationError(message=ex.message, response=ex.response), ex)
+
+        return token
 
     def _probe_imds(self):
+        """Send an invalid token request to learn whether the IMDS endpoint is available"""
+
         request = HttpRequest("GET", Endpoints.IMDS)
         try:
             self._pipeline.run(request, connection_timeout=0.3, retry_total=0)
+            self._type = ManagedIdentityType.IMDS
         except HttpResponseError:
+            # we consider any response to indicate the endpoint is available
             self._type = ManagedIdentityType.IMDS
         except Exception:  # pylint:disable=broad-except
             # if anything else was raised, assume the endpoint is unavailable
