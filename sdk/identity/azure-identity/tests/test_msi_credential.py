@@ -47,7 +47,7 @@ def test_identity_config_app_service():
             Request(
                 base_url=endpoint,
                 method="GET",
-                required_headers={"Metadata": "true", "secret": secret, "User-Agent": USER_AGENT},
+                required_headers={"secret": secret, "User-Agent": USER_AGENT},
                 required_params={"api-version": "2017-09-01", "resource": scope, param_name: param_value,},
             )
         ],
