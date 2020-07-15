@@ -6,15 +6,17 @@ import codecs
 from dateutil import parser as date_parse
 import functools
 import time
-import hashlib
-import os
 import logging
-import sys
 import json
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.keys import JsonWebKey, KeyClient
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import (
+    CachedKeyVaultPreparer,
+    CachedResourceGroupPreparer,
+    KeyVaultPreparer,
+    ResourceGroupPreparer,
+)
 
 from _shared.preparer import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case import KeyVaultTestCase
@@ -355,8 +357,8 @@ class KeyClientTests(KeyVaultTestCase):
         deleted_names = [s.name for s in client.list_deleted_keys()]
         self.assertTrue(not any(name in deleted_names for name in key_names))
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer(client_kwargs={"logging_enable": True})
     def test_logging_enabled(self, client, **kwargs):
         mock_handler = MockHandler()
@@ -379,8 +381,8 @@ class KeyClientTests(KeyVaultTestCase):
 
         assert False, "Expected request body wasn't logged"
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer()
     def test_logging_disabled(self, client, **kwargs):
         mock_handler = MockHandler()

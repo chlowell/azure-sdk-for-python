@@ -10,7 +10,12 @@ import json
 
 from azure.keyvault.keys import JsonWebKey
 from azure.keyvault.keys.aio import KeyClient
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import (
+    CachedKeyVaultPreparer,
+    CachedResourceGroupPreparer,
+    KeyVaultPreparer,
+    ResourceGroupPreparer,
+)
 from _shared.preparer_async import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case_async import KeyVaultTestCase
 
@@ -355,8 +360,8 @@ class KeyVaultKeyTest(KeyVaultTestCase):
         # purge them
         await asyncio.gather(*[client.purge_deleted_key(key.name) for key in deleted])
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer(client_kwargs={"logging_enable": True})
     async def test_logging_enabled(self, client, **kwargs):
         mock_handler = MockHandler()
@@ -379,8 +384,8 @@ class KeyVaultKeyTest(KeyVaultTestCase):
 
         assert False, "Expected request body wasn't logged"
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer()
     async def test_logging_disabled(self, client, **kwargs):
         mock_handler = MockHandler()
