@@ -2,6 +2,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
+import functools
 import time
 import random
 
@@ -38,6 +39,7 @@ DEFAULT_PERMISSIONS = Permissions(
 DEFAULT_SKU = SkuName.premium.value
 CLIENT_OID = "00000000-0000-0000-0000-000000000000"
 
+
 class KeyVaultPreparer(AzureMgmtPreparer):
     def __init__(
         self,
@@ -54,7 +56,8 @@ class KeyVaultPreparer(AzureMgmtPreparer):
         disable_recording=True,
         playback_fake_resource=None,
         client_kwargs=None,
-        random_name_enabled=True
+        random_name_enabled=True,
+        use_cache=False
     ):
         super(KeyVaultPreparer, self).__init__(name_prefix, 24,
                                                      disable_recording=disable_recording,
@@ -73,6 +76,7 @@ class KeyVaultPreparer(AzureMgmtPreparer):
         if random_name_enabled:
             self.resource_moniker = "vaultname"
         self.client_oid = None
+        self.set_cache(use_cache, enable_soft_delete)
 
     def create_resource(self, name, **kwargs):
         self.client_oid = self.test_class_instance.set_value_to_scrub("CLIENT_OID", CLIENT_OID)
@@ -139,3 +143,6 @@ class KeyVaultPreparer(AzureMgmtPreparer):
                 "decorator @{} in front of this storage account preparer."
             )
             raise AzureTestError(template.format(ResourceGroupPreparer.__name__))
+
+
+CachedKeyVaultPreparer = functools.partial(KeyVaultPreparer, use_cache=True)
