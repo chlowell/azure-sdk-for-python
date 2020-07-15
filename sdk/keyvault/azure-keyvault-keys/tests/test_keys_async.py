@@ -13,7 +13,12 @@ import json
 from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.keys import JsonWebKey
 from azure.keyvault.keys.aio import KeyClient
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import (
+    CachedKeyVaultPreparer,
+    CachedResourceGroupPreparer,
+    KeyVaultPreparer,
+    ResourceGroupPreparer,
+)
 from _shared.preparer_async import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case_async import KeyVaultTestCase
 
@@ -22,6 +27,7 @@ from dateutil import parser as date_parse
 
 # pre-apply the client_cls positional argument so it needn't be explicitly passed below
 KeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient)
+CachedKeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient, use_cache=True)
 
 
 # used for logging tests
@@ -371,9 +377,9 @@ class KeyVaultKeyTest(KeyVaultTestCase):
         for key_name in keys.keys():
             await client.purge_deleted_key(key_name)
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @KeyVaultClientPreparer(client_kwargs={"logging_enable": True})
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedKeyVaultClientPreparer(client_kwargs={"logging_enable": True})
     async def test_logging_enabled(self, client, **kwargs):
         mock_handler = MockHandler()
 
@@ -395,9 +401,9 @@ class KeyVaultKeyTest(KeyVaultTestCase):
 
         assert False, "Expected request body wasn't logged"
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @KeyVaultClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedKeyVaultClientPreparer()
     async def test_logging_disabled(self, client, **kwargs):
         mock_handler = MockHandler()
 

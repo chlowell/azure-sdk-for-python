@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
+import functools
+
 from azure.keyvault.keys import KeyClient
 
 from _shared.preparer import KeyVaultClientPreparer
@@ -16,3 +18,5 @@ class CryptoClientPreparer(KeyVaultClientPreparer):
         credential = self.create_credential()
 
         return {"key_client": resource["client"], "credential": credential}
+
+CachedCryptoClientPreparer = functools.partial(CryptoClientPreparer, use_cache=True)

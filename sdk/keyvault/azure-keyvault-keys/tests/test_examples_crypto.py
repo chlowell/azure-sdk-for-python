@@ -2,16 +2,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
-import functools
-import hashlib
-import os
-
-from azure.keyvault.keys import KeyClient
 from azure.keyvault.keys.crypto import CryptographyClient
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import CachedKeyVaultPreparer, CachedResourceGroupPreparer
 
 from _shared.test_case import KeyVaultTestCase
-from crypto_client_preparer import CryptoClientPreparer
+from crypto_client_preparer import CachedCryptoClientPreparer, CryptoClientPreparer
 
 
 class TestCryptoExamples(KeyVaultTestCase):
@@ -21,11 +16,11 @@ class TestCryptoExamples(KeyVaultTestCase):
 
     # pylint:disable=unused-variable
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @CryptoClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedCryptoClientPreparer()
     def test_encrypt_decrypt(self, key_client, credential, **kwargs):
-        key_name = self.get_resource_name("crypto-test-encrypt-key")
+        key_name = self.get_replayable_random_resource_name("crypto-test-encrypt-key")
         key = key_client.create_rsa_key(key_name)
         client = CryptographyClient(key, credential)
 
@@ -52,11 +47,11 @@ class TestCryptoExamples(KeyVaultTestCase):
 
         pass
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @CryptoClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedCryptoClientPreparer()
     def test_wrap_unwrap(self, key_client, credential, **kwargs):
-        key_name = self.get_resource_name("crypto-test-wrapping-key")
+        key_name = self.get_replayable_random_resource_name("crypto-test-wrapping-key")
         key = key_client.create_rsa_key(key_name)
         client = CryptographyClient(key, credential)
 
@@ -82,11 +77,11 @@ class TestCryptoExamples(KeyVaultTestCase):
 
         # [END unwrap]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @CryptoClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedCryptoClientPreparer()
     def test_sign_verify(self, key_client, credential, **kwargs):
-        key_name = self.get_resource_name("crypto-test-wrapping-key")
+        key_name = self.get_replayable_random_resource_name("crypto-test-wrapping-key")
         key = key_client.create_rsa_key(key_name)
         client = CryptographyClient(key, credential)
 

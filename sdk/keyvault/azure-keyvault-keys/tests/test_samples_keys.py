@@ -4,12 +4,14 @@
 # ------------------------------------
 from __future__ import print_function
 import functools
-import hashlib
-import os
 
 from azure.keyvault.keys import KeyClient
-from azure.core.exceptions import ResourceNotFoundError
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import (
+    CachedKeyVaultPreparer,
+    CachedResourceGroupPreparer,
+    KeyVaultPreparer,
+    ResourceGroupPreparer,
+)
 
 from _shared.preparer import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case import KeyVaultTestCase
@@ -17,6 +19,7 @@ from _shared.test_case import KeyVaultTestCase
 
 # pre-apply the client_cls positional argument so it needn't be explicitly passed below
 KeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient)
+CachedKeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient, use_cache=True)
 
 
 def print(*args):
@@ -43,8 +46,6 @@ class TestExamplesKeyVault(KeyVaultTestCase):
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     def test_example_key_crud_operations(self, client, **kwargs):
-        from dateutil import parser as date_parse
-
         key_client = client
 
         # [START create_key]
@@ -138,16 +139,15 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END delete_key]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @KeyVaultClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedKeyVaultClientPreparer()
     def test_example_key_list_operations(self, client, **kwargs):
         key_client = client
 
         for i in range(4):
-            key_client.create_ec_key("key{}".format(i))
-        for i in range(4):
-            key_client.create_rsa_key("key{}".format(i))
+            key_client.create_ec_key(self.get_replayable_random_resource_name("ec" + str(i)))
+            key_client.create_rsa_key(self.get_replayable_random_resource_name("rsa" + str(i)))
 
         # [START list_keys]
 
@@ -185,13 +185,13 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END list_deleted_keys]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer(enable_soft_delete=False)
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer(enable_soft_delete=False)
     @KeyVaultClientPreparer()
     def test_example_keys_backup_restore(self, client, **kwargs):
         key_client = client
-        created_key = key_client.create_key("keyrec", "RSA")
-        key_name = created_key.name
+        key_name = self.get_replayable_random_resource_name("key")
+        created_key = key_client.create_key(key_name, "RSA")
         # [START backup_key]
 
         # backup key
@@ -213,7 +213,7 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END restore_key_backup]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
+    @ResourceGroupPreparer()
     @KeyVaultPreparer()
     @KeyVaultClientPreparer()
     def test_example_keys_recover(self, client, **kwargs):

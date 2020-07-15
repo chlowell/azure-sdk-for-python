@@ -3,18 +3,21 @@
 # Licensed under the MIT License.
 # ------------------------------------
 import functools
-import hashlib
-import os
 
-from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.keys.aio import KeyClient
-from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+from devtools_testutils import (
+    CachedKeyVaultPreparer,
+    CachedResourceGroupPreparer,
+    KeyVaultPreparer,
+    ResourceGroupPreparer,
+)
 from _shared.preparer_async import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case_async import KeyVaultTestCase
 
 
 # pre-apply the client_cls positional argument so it needn't be explicitly passed below
 KeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient)
+CachedKeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient, use_cache=True)
 
 
 def print(*args):
@@ -129,16 +132,15 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END delete_key]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
-    @KeyVaultClientPreparer()
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer()
+    @CachedKeyVaultClientPreparer()
     async def test_example_key_list_operations(self, client, **kwargs):
         key_client = client
 
         for i in range(4):
-            await key_client.create_ec_key("key{}".format(i))
-        for i in range(4):
-            await key_client.create_rsa_key("key{}".format(i))
+            await key_client.create_ec_key(self.get_replayable_random_resource_name("ec" + str(i)))
+            await key_client.create_rsa_key(self.get_replayable_random_resource_name("rsa" + str(i)))
 
         # [START list_keys]
 
@@ -179,12 +181,12 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END list_deleted_keys]
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer(enable_soft_delete=False)
+    @CachedResourceGroupPreparer()
+    @CachedKeyVaultPreparer(enable_soft_delete=False)
     @KeyVaultClientPreparer()
     async def test_example_keys_backup_restore(self, client, **kwargs):
         key_client = client
-        key_name = "test-key"
+        key_name = self.get_replayable_random_resource_name("key")
         await key_client.create_key(key_name, "RSA")
         # [START backup_key]
 

@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
+import functools
+
 try:
     from unittest.mock import Mock
 except ImportError:  # python < 3.3
@@ -13,9 +15,10 @@ from devtools_testutils import AzureMgmtPreparer
 
 
 class KeyVaultClientPreparer(AzureMgmtPreparer):
-    def __init__(self, client_cls, name_prefix="vault", random_name_enabled=True, **kwargs):
+    def __init__(self, client_cls, name_prefix="vault", random_name_enabled=True, use_cache=False, **kwargs):
         super(KeyVaultClientPreparer, self).__init__(name_prefix, 24, random_name_enabled=random_name_enabled, **kwargs)
         self._client_cls = client_cls
+        self.set_cache(use_cache)
 
     def create_credential(self):
         if self.is_live:
@@ -27,3 +30,5 @@ class KeyVaultClientPreparer(AzureMgmtPreparer):
         credential = self.create_credential()
         client = self._client_cls(kwargs.get("vault_uri"), credential, **self.client_kwargs)
         return {"client": client}
+
+CachedKeyVaultClientPreparer = functools.partial(KeyVaultClientPreparer, use_cache=True)
