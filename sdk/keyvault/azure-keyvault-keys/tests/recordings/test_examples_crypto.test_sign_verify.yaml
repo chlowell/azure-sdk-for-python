@@ -13,13 +13,13 @@ interactions:
       Content-Type:
       - application/json
       User-Agent:
-      - azsdk-python-keyvault-keys/4.2.0b2 Python/3.7.7 (Darwin-17.7.0-x86_64-i386-64bit)
+      - azsdk-python-keyvault-keys/4.2.0b2 Python/2.7.15 (Windows-10-10.0.19041)
     method: POST
-    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key25cf0f71/create?api-version=7.1
+    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key/create?api-version=7.1
   response:
     body:
-      string: '{"error":{"code":"Unauthorized","message":"Request is missing a Bearer
-        or PoP token."}}'
+      string: !!python/unicode '{"error":{"code":"Unauthorized","message":"Request
+        is missing a Bearer or PoP token."}}'
     headers:
       cache-control:
       - no-cache
@@ -28,7 +28,7 @@ interactions:
       content-type:
       - application/json; charset=utf-8
       date:
-      - Wed, 29 Jul 2020 16:12:43 GMT
+      - Mon, 03 Aug 2020 22:15:31 GMT
       expires:
       - '-1'
       pragma:
@@ -43,7 +43,7 @@ interactions:
       x-content-type-options:
       - nosniff
       x-ms-keyvault-network-info:
-      - conn_type=Ipv4;addr=73.135.72.237;act_addr_fam=InterNetwork;
+      - conn_type=Ipv4;addr=24.17.201.78;act_addr_fam=InterNetwork;
       x-ms-keyvault-region:
       - westus
       x-ms-keyvault-service-version:
@@ -54,7 +54,7 @@ interactions:
       code: 401
       message: Unauthorized
 - request:
-    body: '{"kty": "RSA"}'
+    body: !!python/unicode '{"kty": "RSA"}'
     headers:
       Accept:
       - application/json
@@ -67,21 +67,21 @@ interactions:
       Content-Type:
       - application/json
       User-Agent:
-      - azsdk-python-keyvault-keys/4.2.0b2 Python/3.7.7 (Darwin-17.7.0-x86_64-i386-64bit)
+      - azsdk-python-keyvault-keys/4.2.0b2 Python/2.7.15 (Windows-10-10.0.19041)
     method: POST
-    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key25cf0f71/create?api-version=7.1
+    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key/create?api-version=7.1
   response:
     body:
-      string: '{"key":{"kid":"https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key25cf0f71/2651641c27da444b99f7c4c96994f6e8","kty":"RSA","key_ops":["encrypt","decrypt","sign","verify","wrapKey","unwrapKey"],"n":"o3ASWboStkWD8aYqt7KdwGDVfmLhYItWA5tZoMctaHtG0NnJr9eWvcLB6tg0_4WnAB0bFo6d38r7oFzxSwYYC-UwColkGy7jU9WQMh2rQhqD6xSHLvBe_1PDsDW2GT0k2SdfryMKjk0hBr6clccnSZGczpzjVB_Ecl3JKd4WIssfYq4_pdag3PMPZXUj4LaBnPPspTTq0om0uqp6vEPA_zdVfsaFQVDKBni0ire5ahwOuKq1MlWHqQqI7aNfXgDJD5oQbpooZxAoEfMxBx50M2vtpO9-LRHbQ8-MNjJjin5CcAQUq-Cv7snFHG4Tu8MWsu1QDFmaV5NUc8PdXZpg_Q","e":"AQAB"},"attributes":{"enabled":true,"created":1596039164,"updated":1596039164,"recoveryLevel":"Recoverable+Purgeable","recoverableDays":90}}'
+      string: !!python/unicode '{"key":{"kid":"https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key/737cf82b5cc64f0fba2f3bac7b0ccc35","kty":"RSA","key_ops":["encrypt","decrypt","sign","verify","wrapKey","unwrapKey"],"n":"td26jmE-UCz0zVKi_93XZtkRAzFu7cUXrHVN62KuYhJkpm_uE_sZlWqFZEifeiOjDfUiJfUTgUcLep1kCpDV19P7oVzgS19lIUSF7lExUygAd-5Mn-4eHMU4GBct_iDv-YC8xDaUrqDix6xbHKptTqDUknya6AY9H2nP_GWyhwTh49YreyWR5-SiEFnYosFj7kPoRHo6Lhn65GzT84xBZCm2iq4xHyTWcfBxSCYRpHSl1agoOuWe3s5A5rPiJHL6C9HpRB77hWTt6TKkKc5fbMG82EwiSrfj7-JN43XzbX_1upeyp06N7PtTwPAGLla2xcPeGefnuySXUHdcdYeUhw","e":"AQAB"},"attributes":{"enabled":true,"created":1596492932,"updated":1596492932,"recoveryLevel":"Recoverable+Purgeable","recoverableDays":90}}'
     headers:
       cache-control:
       - no-cache
       content-length:
-      - '712'
+      - '704'
       content-type:
       - application/json; charset=utf-8
       date:
-      - Wed, 29 Jul 2020 16:12:44 GMT
+      - Mon, 03 Aug 2020 22:15:32 GMT
       expires:
       - '-1'
       pragma:
@@ -93,7 +93,7 @@ interactions:
       x-content-type-options:
       - nosniff
       x-ms-keyvault-network-info:
-      - conn_type=Ipv4;addr=73.135.72.237;act_addr_fam=InterNetwork;
+      - conn_type=Ipv4;addr=24.17.201.78;act_addr_fam=InterNetwork;
       x-ms-keyvault-region:
       - westus
       x-ms-keyvault-service-version:
@@ -104,7 +104,7 @@ interactions:
       code: 200
       message: OK
 - request:
-    body: '{"alg": "RS256", "value": "ltYuKr0-Qt5fUDMPuO_ExVmYNSeAd7IemqCzPB3wehw"}'
+    body: !!python/unicode '{"alg": "RS256", "value": "ltYuKr0-Qt5fUDMPuO_ExVmYNSeAd7IemqCzPB3wehw"}'
     headers:
       Accept:
       - application/json
@@ -117,21 +117,21 @@ interactions:
       Content-Type:
       - application/json
       User-Agent:
-      - azsdk-python-keyvault-keys/4.2.0b2 Python/3.7.7 (Darwin-17.7.0-x86_64-i386-64bit)
+      - azsdk-python-keyvault-keys/4.2.0b2 Python/2.7.15 (Windows-10-10.0.19041)
     method: POST
-    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key25cf0f71/2651641c27da444b99f7c4c96994f6e8/sign?api-version=7.1
+    uri: https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key/737cf82b5cc64f0fba2f3bac7b0ccc35/sign?api-version=7.1
   response:
     body:
-      string: '{"kid":"https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key25cf0f71/2651641c27da444b99f7c4c96994f6e8","value":"gmBc8YeRKWcwLMYHo3Z2uvhWDb9rOBQRNPyT2W58HImAqvQzpelqvg-GTl7F0mX-TDc97cajg-YlrQUYhcJsBMTaaS96_bSmNiM8tP_aTjjvb4ebPKMmWMLsGj3rVD7UpuLW31QY8k2N6YXZbjT33na2rtpprAm71FBjXVDd3hRLE1SM8Tf9DVGfbTikWvoa_wErUL80QdKBp3A7vkfZfm0IumaQcqgy9LJt0AhlugDdGZ3wnJ9YOYbOuXF2stf8IWBWVO-NfrGmPMeBS8yR3FfKMSOi4nnSU2h2AuygRWE4DNo2Uc4CNaAbGdNUTcBOf1xoNe748-KzeO8fMsTTvw"}'
+      string: !!python/unicode '{"kid":"https://vaultname.vault.azure.net/keys/crypto-test-wrapping-key/737cf82b5cc64f0fba2f3bac7b0ccc35","value":"L6P9pFo0EQGxths2h7dwvuLSfnUuU6CSMnRJD0OBDj0hPHboqvqymkqStJeItBHKNxzi7lZ865NlsUiOMmje284skZQT-NC0fysbK7AdCSP1eVXTBexSu_BTkEBNzZKq-K5kR6k9wEajyz5SxZ9bBC9aWF1gRClDphsHsTQ_qUtDwi2y5lXqPvGJN2SCbTZX2olrECC8Xrz5BPjv-Pj676qrbL4-ySL5WSTymzMCHRp2rvSlasmf8Ox38cNxrqaM3C6UUB1CLA1l5zleLB0heno7u7Zmrnm3sdb43djK3ch3ZiCM38OqZOnnqRBwMiY9exdniQTYd2Qqo8OlMVnQNA"}'
     headers:
       cache-control:
       - no-cache
       content-length:
-      - '482'
+      - '474'
       content-type:
       - application/json; charset=utf-8
       date:
-      - Wed, 29 Jul 2020 16:12:45 GMT
+      - Mon, 03 Aug 2020 22:15:33 GMT
       expires:
       - '-1'
       pragma:
@@ -143,7 +143,7 @@ interactions:
       x-content-type-options:
       - nosniff
       x-ms-keyvault-network-info:
-      - conn_type=Ipv4;addr=73.135.72.237;act_addr_fam=InterNetwork;
+      - conn_type=Ipv4;addr=24.17.201.78;act_addr_fam=InterNetwork;
       x-ms-keyvault-region:
       - westus
       x-ms-keyvault-service-version:

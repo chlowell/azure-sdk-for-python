@@ -13,13 +13,12 @@ from devtools_testutils import (
     ResourceGroupPreparer,
 )
 
-from _shared.preparer import KeyVaultClientPreparer as _KeyVaultClientPreparer
+from _shared.preparer import CachedKeyVaultClientPreparer, KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case import KeyVaultTestCase
 
 
 # pre-apply the client_cls positional argument so it needn't be explicitly passed below
 KeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient)
-CachedKeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, KeyClient, use_cache=True)
 
 
 def print(*args):
@@ -139,9 +138,7 @@ class TestExamplesKeyVault(KeyVaultTestCase):
 
         # [END delete_key]
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedKeyVaultClientPreparer()
+    @CachedKeyVaultClientPreparer
     def test_example_key_list_operations(self, client, **kwargs):
         key_client = client
 

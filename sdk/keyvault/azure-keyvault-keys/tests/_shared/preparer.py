@@ -13,6 +13,8 @@ from azure.core.credentials import AccessToken
 from azure.identity import EnvironmentCredential
 from devtools_testutils import AzureMgmtPreparer
 
+from cached_preparer import cached_resource_test
+
 
 class KeyVaultClientPreparer(AzureMgmtPreparer):
     def __init__(self, client_cls, name_prefix="vault", random_name_enabled=True, use_cache=False, **kwargs):
@@ -31,4 +33,6 @@ class KeyVaultClientPreparer(AzureMgmtPreparer):
         client = self._client_cls(kwargs.get("vault_uri"), credential, **self.client_kwargs)
         return {"client": client}
 
-CachedKeyVaultClientPreparer = functools.partial(KeyVaultClientPreparer, use_cache=True)
+
+def CachedKeyVaultClientPreparer(client_cls):
+    return functools.partial(cached_resource_test, functools.partial(KeyVaultClientPreparer,client_cls))

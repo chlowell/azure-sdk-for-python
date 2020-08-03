@@ -139,9 +139,7 @@ class CryptoClientTests(KeyVaultTestCase):
         result = await crypto_client.unwrap_key(result.algorithm, result.encrypted_key)
         self.assertEqual(key_bytes, result.key)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     async def test_encrypt_local(self, key_client, credential, **kwargs):
         """Encrypt locally, decrypt with Key Vault"""
 
@@ -156,9 +154,7 @@ class CryptoClientTests(KeyVaultTestCase):
             result = await crypto_client.decrypt(result.algorithm, result.ciphertext)
             self.assertEqual(result.plaintext, self.plaintext)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     async def test_wrap_local(self, key_client, credential, **kwargs):
         """Wrap locally, unwrap with Key Vault"""
 
@@ -173,9 +169,7 @@ class CryptoClientTests(KeyVaultTestCase):
             result = await crypto_client.unwrap_key(result.algorithm, result.encrypted_key)
             self.assertEqual(result.key, self.plaintext)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     async def test_rsa_verify_local(self, key_client, credential, **kwargs):
         """Sign with Key Vault, verify locally"""
 
@@ -199,9 +193,7 @@ class CryptoClientTests(KeyVaultTestCase):
                 result = await crypto_client.verify(result.algorithm, digest, result.signature)
                 self.assertTrue(result.is_valid)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     async def test_ec_verify_local(self, key_client, credential, **kwargs):
         """Sign with Key Vault, verify locally"""
 

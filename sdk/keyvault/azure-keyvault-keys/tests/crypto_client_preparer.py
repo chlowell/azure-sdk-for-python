@@ -6,6 +6,7 @@ import functools
 
 from azure.keyvault.keys import KeyClient
 
+from _shared.cached_preparer import cached_resource_test
 from _shared.preparer import KeyVaultClientPreparer
 
 
@@ -19,4 +20,5 @@ class CryptoClientPreparer(KeyVaultClientPreparer):
 
         return {"key_client": resource["client"], "credential": credential}
 
-CachedCryptoClientPreparer = functools.partial(CryptoClientPreparer, use_cache=True)
+
+CachedCryptoClientPreparer = functools.partial(cached_resource_test, CryptoClientPreparer)

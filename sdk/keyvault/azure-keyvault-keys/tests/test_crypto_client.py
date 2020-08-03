@@ -11,12 +11,7 @@ from azure.keyvault.keys import JsonWebKey, KeyCurveName, KeyVaultKey
 from azure.keyvault.keys.crypto import CryptographyClient, EncryptionAlgorithm, KeyWrapAlgorithm, SignatureAlgorithm
 from azure.keyvault.keys.crypto._client import _UTC
 from azure.mgmt.keyvault.models import KeyPermissions, Permissions
-from devtools_testutils import (
-    CachedKeyVaultPreparer,
-    CachedResourceGroupPreparer,
-    KeyVaultPreparer,
-    ResourceGroupPreparer,
-)
+from devtools_testutils import KeyVaultPreparer, ResourceGroupPreparer
 
 import pytest
 
@@ -153,9 +148,7 @@ class CryptoClientTests(KeyVaultTestCase):
         unwrap_result = crypto_client.unwrap_key(wrap_result.algorithm, wrap_result.encrypted_key)
         self.assertEqual(unwrap_result.key, key_bytes)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_encrypt_local(self, key_client, credential, **kwargs):
         """Encrypt locally, decrypt with Key Vault"""
 
@@ -170,9 +163,7 @@ class CryptoClientTests(KeyVaultTestCase):
             result = crypto_client.decrypt(result.algorithm, result.ciphertext)
             self.assertEqual(result.plaintext, self.plaintext)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_wrap_local(self, key_client, credential, **kwargs):
         """Wrap locally, unwrap with Key Vault"""
 
@@ -187,9 +178,7 @@ class CryptoClientTests(KeyVaultTestCase):
             result = crypto_client.unwrap_key(result.algorithm, result.encrypted_key)
             self.assertEqual(result.key, self.plaintext)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_rsa_verify_local(self, key_client, credential, **kwargs):
         """Sign with Key Vault, verify locally"""
 
@@ -213,9 +202,7 @@ class CryptoClientTests(KeyVaultTestCase):
                 result = crypto_client.verify(result.algorithm, digest, result.signature)
                 self.assertTrue(result.is_valid)
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_ec_verify_local(self, key_client, credential, **kwargs):
         """Sign with Key Vault, verify locally"""
 

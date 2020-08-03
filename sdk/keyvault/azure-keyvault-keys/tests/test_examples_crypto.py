@@ -3,7 +3,6 @@
 # Licensed under the MIT License.
 # ------------------------------------
 from azure.keyvault.keys.crypto import CryptographyClient
-from devtools_testutils import CachedKeyVaultPreparer, CachedResourceGroupPreparer
 
 from _shared.test_case import KeyVaultTestCase
 from crypto_client_preparer import CachedCryptoClientPreparer, CryptoClientPreparer
@@ -16,9 +15,7 @@ class TestCryptoExamples(KeyVaultTestCase):
 
     # pylint:disable=unused-variable
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_encrypt_decrypt(self, key_client, credential, **kwargs):
         key_name = self.get_replayable_random_resource_name("crypto-test-encrypt-key")
         key = key_client.create_rsa_key(key_name)
@@ -47,9 +44,7 @@ class TestCryptoExamples(KeyVaultTestCase):
 
         pass
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_wrap_unwrap(self, key_client, credential, **kwargs):
         key_name = self.get_replayable_random_resource_name("crypto-test-wrapping-key")
         key = key_client.create_rsa_key(key_name)
@@ -77,9 +72,7 @@ class TestCryptoExamples(KeyVaultTestCase):
 
         # [END unwrap]
 
-    @CachedResourceGroupPreparer()
-    @CachedKeyVaultPreparer()
-    @CachedCryptoClientPreparer()
+    @CachedCryptoClientPreparer
     def test_sign_verify(self, key_client, credential, **kwargs):
         key_name = self.get_replayable_random_resource_name("crypto-test-wrapping-key")
         key = key_client.create_rsa_key(key_name)
