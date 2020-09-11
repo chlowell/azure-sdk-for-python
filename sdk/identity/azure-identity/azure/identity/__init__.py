@@ -22,6 +22,8 @@ from ._credentials import (
     UsernamePasswordCredential,
     VisualStudioCodeCredential,
 )
+from ._token_cache import deserialize_token_cache, serialize_token_cache, TokenCache
+from ._internal.persistent_cache import PersistentTokenCache
 
 
 __all__ = [
@@ -35,12 +37,16 @@ __all__ = [
     "ClientSecretCredential",
     "CredentialUnavailableError",
     "DefaultAzureCredential",
+    "deserialize_token_cache",
     "DeviceCodeCredential",
     "EnvironmentCredential",
     "InteractiveBrowserCredential",
     "KnownAuthorities",
     "ManagedIdentityCredential",
+    "PersistentTokenCache",
+    "serialize_token_cache",
     "SharedTokenCacheCredential",
+    "TokenCache",
     "UsernamePasswordCredential",
     "VisualStudioCodeCredential",
 ]

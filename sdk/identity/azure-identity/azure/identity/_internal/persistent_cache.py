@@ -9,23 +9,38 @@ from typing import TYPE_CHECKING
 import msal_extensions
 
 if TYPE_CHECKING:
-    from typing import Optional
-    import msal
+    from typing import Any
 
 
-def load_service_principal_cache(allow_unencrypted):
-    # type: (Optional[bool]) -> msal.TokenCache
-    return _load_persistent_cache(allow_unencrypted, "MSALConfidentialCache", "msal.confidential.cache")
+class PersistentTokenCache(object):
+    """Persistent token cache.
+
+    :keyword str name: name of the cache, used to isolate its data from other applications. Defaults to the name of the
+        cache shared by Microsoft dev tools and :class:`~azure.identity.SharedTokenCacheCredential`.
+    :keyword bool allow_unencrypted_storage: whether the cache should fall back to storing its data in plain text when
+        encryption isn't possible. False by default.
+
+    :raises NotImplementedError: persistent token caching isn't supported on the current platform
+    :raises ValueError: encryption isn't available on the current platform, and `allow_unencrypted_storage` is False.
+        Specify `allow_unencrypted_storage=True` to work around this, if it's acceptable for the cache to store data
+        without encryption.
+    """
+
+    def __init__(self, **kwargs):
+        # type: (**Any) -> None
+        persistence = kwargs.get("_persistence")
+        if not persistence:
+            persistence = _get_persistence(
+                allow_unencrypted=kwargs.get("allow_unencrypted_storage", False),
+                account_name="MSALCache",
+                cache_name=kwargs.get("name", "msal.cache"),
+            )
+        self._cache = msal_extensions.PersistedTokenCache(persistence)
 
 
-def load_user_cache(allow_unencrypted):
-    # type: (Optional[bool]) -> msal.TokenCache
-    return _load_persistent_cache(allow_unencrypted, "MSALCache", "msal.cache")
-
-
-def _load_persistent_cache(allow_unencrypted, account_name, cache_name):
-    # type: (Optional[bool], str, str) -> msal.TokenCache
-    """Load the persistent cache using msal_extensions.
+def _get_persistence(allow_unencrypted, account_name, cache_name):
+    # type: (bool, str, str) -> msal_extensions.persistence.BasePersistence
+    """Get an msal_extensions persistence instance for the current platform.
 
     On Windows the cache is a file protected by the Data Protection API. On Linux and macOS the cache is stored by
     libsecret and Keychain, respectively. On those platforms the cache uses the modified timestamp of a file on disk to
@@ -37,19 +52,19 @@ def _load_persistent_cache(allow_unencrypted, account_name, cache_name):
 
     if sys.platform.startswith("win") and "LOCALAPPDATA" in os.environ:
         cache_location = os.path.join(os.environ["LOCALAPPDATA"], ".IdentityService", cache_name)
-        persistence = msal_extensions.FilePersistenceWithDataProtection(cache_location)
-    elif sys.platform.startswith("darwin"):
+        return msal_extensions.FilePersistenceWithDataProtection(cache_location)
+
+    if sys.platform.startswith("darwin"):
         # the cache uses this file's modified timestamp to decide whether to reload
         file_path = os.path.expanduser(os.path.join("~", ".IdentityService", cache_name))
-        persistence = msal_extensions.KeychainPersistence(
-            file_path, "Microsoft.Developer.IdentityService", account_name
-        )
-    elif sys.platform.startswith("linux"):
+        return msal_extensions.KeychainPersistence(file_path, "Microsoft.Developer.IdentityService", account_name)
+
+    if sys.platform.startswith("linux"):
         # The cache uses this file's modified timestamp to decide whether to reload. Note this path is the same
         # as that of the plaintext fallback: a new encrypted cache will stomp an unencrypted cache.
         file_path = os.path.expanduser(os.path.join("~", ".IdentityService", cache_name))
         try:
-            persistence = msal_extensions.LibsecretPersistence(
+            return msal_extensions.LibsecretPersistence(
                 file_path, cache_name, {"MsalClientID": "Microsoft.Developer.IdentityService"}, label=account_name
             )
         except ImportError:
@@ -58,8 +73,6 @@ def _load_persistent_cache(allow_unencrypted, account_name, cache_name):
                     "PyGObject is required to encrypt the persistent cache. Please install that library or ",
                     "specify 'allow_unencrypted_cache=True' to store the cache without encryption.",
                 )
-            persistence = msal_extensions.FilePersistence(file_path)
-    else:
-        raise NotImplementedError("A persistent cache is not available in this environment.")
+            return msal_extensions.FilePersistence(file_path)
 
-    return msal_extensions.PersistedTokenCache(persistence)
+    raise NotImplementedError("A persistent cache is not available in this environment.")
