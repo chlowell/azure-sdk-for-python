@@ -2,6 +2,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 # ------------------------------------
+from azure_devtools.scenario_tests import AzureTestError
+
 try:
     from unittest.mock import Mock
 except ImportError:  # python < 3.3
@@ -34,3 +36,10 @@ class CachedKeyVaultPreparer(KeyVaultPreparer):
             rg_preparer = CachedResourceGroupPreparer()
             _, kwargs = rg_preparer._prepare_create_resource(self.test_class_instance, **kwargs)
         return super(CachedKeyVaultPreparer, self).create_resource(name, **kwargs)
+
+    def remove_resource(self, name, **kwargs):
+        try:
+            return super(CachedKeyVaultPreparer, self).remove_resource(name, **kwargs)
+        except AzureTestError as ex:
+            # resource group was already deleted during teardown of another test case
+            return

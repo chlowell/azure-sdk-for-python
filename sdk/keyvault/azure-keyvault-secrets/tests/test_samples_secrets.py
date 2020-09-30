@@ -11,6 +11,8 @@ from _shared.preparer import CachedKeyVaultPreparer, KeyVaultClientPreparer as _
 from _shared.test_case import KeyVaultTestCase
 
 # pre-apply the client_cls positional argument so it needn't be explicitly passed below
+from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
+
 KeyVaultClientPreparer = functools.partial(_KeyVaultClientPreparer, SecretClient)
 
 
@@ -146,6 +148,9 @@ class TestExamplesKeyVault(KeyVaultTestCase):
         # [END backup_secret]
 
         secret_client.begin_delete_secret(secret_name).wait()
+        secret_client.purge_deleted_secret(secret_name)
+        import time
+        time.sleep(10)
 
         # [START restore_secret_backup]
         restored_secret = secret_client.restore_secret_backup(secret_backup)

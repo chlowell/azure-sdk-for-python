@@ -143,6 +143,10 @@ class TestExamplesKeyVault(KeyVaultTestCase):
         # [END backup_secret]
 
         await secret_client.delete_secret(secret_name)
+        await secret_client.purge_deleted_secret(secret_name)
+
+        import asyncio
+        await asyncio.sleep(10)
 
         # [START restore_secret_backup]
         restored_secret = await secret_client.restore_secret_backup(secret_backup)
