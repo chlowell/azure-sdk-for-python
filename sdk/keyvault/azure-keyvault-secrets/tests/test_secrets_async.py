@@ -11,6 +11,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.secrets.aio import SecretClient
 from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
 
+from _shared.preparer import CachedKeyVaultPreparer
 from _shared.preparer_async import KeyVaultClientPreparer as _KeyVaultClientPreparer
 from _shared.test_case_async import KeyVaultTestCase
 
@@ -278,8 +279,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
         for secret_name in secrets.keys():
             await client.purge_deleted_secret(secret_name)
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer(client_kwargs={"logging_enable": True})
     async def test_logging_enabled(self, client, **kwargs):
         mock_handler = MockHandler()
@@ -288,7 +288,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
         logger.addHandler(mock_handler)
         logger.setLevel(logging.DEBUG)
 
-        await client.set_secret("secret-name", "secret-value")
+        await client.set_secret(self.get_resource_name("secret"), "secret-value")
 
         for message in mock_handler.messages:
             if message.levelname == "DEBUG" and message.funcName == "on_request":
@@ -302,8 +302,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
 
         assert False, "Expected request body wasn't logged"
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer()
     async def test_logging_disabled(self, client, **kwargs):
         mock_handler = MockHandler()
@@ -312,7 +311,7 @@ class KeyVaultSecretTest(KeyVaultTestCase):
         logger.addHandler(mock_handler)
         logger.setLevel(logging.DEBUG)
 
-        await client.set_secret("secret-name", "secret-value")
+        await client.set_secret(self.get_resource_name("secret"), "secret-value")
 
         for message in mock_handler.messages:
             if message.levelname == "DEBUG" and message.funcName == "on_request":

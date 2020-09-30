@@ -12,7 +12,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.keyvault.secrets import SecretClient
 from devtools_testutils import ResourceGroupPreparer, KeyVaultPreparer
 
-from _shared.preparer import KeyVaultClientPreparer as _KeyVaultClientPreparer
+from _shared.preparer import KeyVaultClientPreparer as _KeyVaultClientPreparer, CachedKeyVaultPreparer
 from _shared.test_case import KeyVaultTestCase
 
 
@@ -284,8 +284,7 @@ class SecretClientTests(KeyVaultTestCase):
         deleted = [s.name for s in client.list_deleted_secrets()]
         self.assertTrue(not any(s in deleted for s in secrets.keys()))
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer(client_kwargs={"logging_enable": True})
     def test_logging_enabled(self, client, **kwargs):
         mock_handler = MockHandler()
@@ -308,8 +307,7 @@ class SecretClientTests(KeyVaultTestCase):
 
         assert False, "Expected request body wasn't logged"
 
-    @ResourceGroupPreparer(random_name_enabled=True)
-    @KeyVaultPreparer()
+    @CachedKeyVaultPreparer()
     @KeyVaultClientPreparer()
     def test_logging_disabled(self, client, **kwargs):
         mock_handler = MockHandler()
