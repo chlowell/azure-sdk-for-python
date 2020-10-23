@@ -4,6 +4,7 @@
 # ------------------------------------
 import functools
 import os
+from unittest import mock
 import uuid
 
 from azure.keyvault.administration import KeyVaultRoleScope
@@ -100,3 +101,65 @@ class AccessControlTests(KeyVaultTestCase):
 
         async for assignment in client.list_role_assignments(scope):
             assert assignment.assignment_id != created.assignment_id, "the role assignment should have been deleted"
+
+    @ResourceGroupPreparer(random_name_enabled=True)
+    @KeyVaultPreparer()
+    @AccessControlClientPreparer()
+    async def test_samples(self, client):
+        def print(*args):
+            assert all(arg is not None for arg in args)
+
+        # [START list_role_definitions]
+        async for role_definition in client.list_role_definitions():
+            print(role_definition.role_name)
+            print(role_definition.id)
+        # [END list_role_definitions]
+
+        assert role_definition  # should always be at least one definition
+
+        principal_id = self.get_service_principal_id()
+        with mock.patch(KeyVaultAccessControlClient.__module__ + ".uuid4", lambda: self.get_replayable_uuid("uuid")):
+            # [START create_role_assignment]
+            # this assignment will apply to all the Vault's keys
+            scope = KeyVaultRoleScope.keys_value
+            assignment = await client.create_role_assignment(scope, role_definition.id, principal_id)
+            # [END create_role_assignment]
+
+        created_assignment = assignment
+        name = assignment.name
+
+        # [START get_role_assignment]
+        assignment = await client.get_role_assignment(scope, name)
+        # [END get_role_assignment]
+
+        assert assignment.name == created_assignment.assignment.name
+        assert assignment.principal_id == created_assignment.assignment.principal_id
+        assert assignment.scope == created_assignment.assignment.scope
+        assert assignment.role_definition_id == role_definition.id
+
+        # [START list_role_assignments]
+        async for assignment in client.list_role_assignments:
+            print(assignment.name)
+        # [END list_role_assignments]
+
+        # [START delete_role_assignment]
+        deleted_assignment = await client.delete_role_assignment(assignment.scope, assignment.name)
+        # [END delete_role_assignment]
+
+        assert deleted_assignment.name == created_assignment.name
+        assert deleted_assignment.assignment_id == created_assignment.assignment_id
+        assert deleted_assignment.role_definition_id == created_assignment.role_definition_id
+        assert deleted_assignment.scope == scope
+
+
+def test_create_access_control_client():
+    vault_url = "..."
+
+    # [START create_access_control_client]
+    from azure.identity.aio import DefaultAzureCredential
+    from azure.keyvault.administration.aio import KeyVaultAccessControlClient
+
+    # This could be any credential from azure.identity.aio
+    credential = DefaultAzureCredential()
+    client = KeyVaultAccessControlClient(vault_url, credential)
+    # [END create_access_control_client]

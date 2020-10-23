@@ -25,6 +25,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
     :param str vault_url: URL of the vault the client will manage. This is also called the vault's "DNS Name".
     :param credential: an object which can provide an access token for the vault, such as a credential from
         :mod:`azure.identity`
+
+    .. literalinclude:: ../../tests/test_access_control.py
+        :start-after: [START create_access_control_client]
+        :end-before: [END create_access_control_client]
+        :language: python
+        :caption: Create a KeyVaultAccessControlClient
+        :dedent: 8
     """
 
     # pylint:disable=protected-access
@@ -44,6 +51,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
         :keyword role_assignment_name: a name for the role assignment. Must be a UUID.
         :type role_assignment_name: str or uuid.UUID
         :rtype: KeyVaultRoleAssignment
+
+        .. literalinclude:: ../../tests/test_access_control_async.py
+            :start-after: [START create_role_assignment]
+            :end-before: [END create_role_assignment]
+            :language: python
+            :caption: Create a role assignment
+            :dedent: 12
         """
         create_parameters = self._client.role_assignments.models.RoleAssignmentCreateParameters(
             properties=self._client.role_assignments.models.RoleAssignmentProperties(
@@ -72,6 +86,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
         :type role_assignment_name: str or uuid.UUID
         :returns: the deleted assignment
         :rtype: KeyVaultRoleAssignment
+
+        .. literalinclude:: ../../tests/test_access_control_async.py
+            :start-after: [START delete_role_assignment]
+            :end-before: [END delete_role_assignment]
+            :language: python
+            :caption: Delete a role assignment
+            :dedent: 8
         """
         assignment = await self._client.role_assignments.delete(
             vault_base_url=self._vault_url, scope=role_scope, role_assignment_name=str(role_assignment_name), **kwargs
@@ -90,6 +111,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
         :param role_assignment_name: the assignment's name. Must be a UUID.
         :type role_assignment_name: str or uuid.UUID
         :rtype: KeyVaultRoleAssignment
+
+        .. literalinclude:: ../tests/test_access_control_async.py
+            :start-after: [START get_role_assignment]
+            :end-before: [END get_role_assignment]
+            :language: python
+            :caption: Get a role assignment
+            :dedent: 8
         """
         assignment = await self._client.role_assignments.get(
             vault_base_url=self._vault_url, scope=role_scope, role_assignment_name=str(role_assignment_name), **kwargs
@@ -106,6 +134,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
             scopes. Specify a narrower scope as a string.
         :type role_scope: str or KeyVaultRoleScope
         :rtype: ~azure.core.async_paging.AsyncItemPaged[KeyVaultRoleAssignment]
+
+        .. literalinclude:: ../../tests/test_access_control_async.py
+            :start-after: [START list_role_assignments]
+            :end-before: [END list_role_assignments]
+            :language: python
+            :caption: List role assignments
+            :dedent: 8
         """
         return self._client.role_assignments.list_for_scope(
             self._vault_url,
@@ -124,6 +159,13 @@ class KeyVaultAccessControlClient(AsyncKeyVaultClientBase):
             scopes. Specify a narrower scope as a string.
         :type role_scope: str or KeyVaultRoleScope
         :rtype: ~azure.core.async_paging.AsyncItemPaged[KeyVaultRoleDefinition]
+
+        .. literalinclude:: ../../tests/test_access_control_async.py
+            :start-after: [START list_role_definitions]
+            :end-before: [END list_role_definitions]
+            :language: python
+            :caption: List role definitions
+            :dedent: 8
         """
         return self._client.role_definitions.list(
             self._vault_url,
