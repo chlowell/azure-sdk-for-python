@@ -3,13 +3,20 @@
 # Licensed under the MIT License. See LICENSE.txt in the project root for
 # license information.
 # -------------------------------------------------------------------------
+import base64
+import itertools
 import time
 
 import azure.core
 from azure.core.credentials import AccessToken, AzureKeyCredential
 from azure.core.exceptions import ServiceRequestError
 from azure.core.pipeline import Pipeline
-from azure.core.pipeline.policies import BearerTokenCredentialPolicy, SansIOHTTPPolicy, AzureKeyCredentialPolicy
+from azure.core.pipeline.policies import (
+    BearerTokenCredentialPolicy,
+    SansIOHTTPPolicy,
+    AzureKeyCredentialPolicy,
+)
+from azure.core.pipeline.policies._authentication import _get_challenges
 from azure.core.pipeline.transport import HttpRequest
 
 import pytest
@@ -28,6 +35,7 @@ def test_bearer_policy_adds_header():
 
     def verify_authorization_header(request):
         assert request.http_request.headers["Authorization"] == "Bearer {}".format(expected_token.token)
+        return Mock()
 
     fake_credential = Mock(get_token=Mock(return_value=expected_token))
     policies = [BearerTokenCredentialPolicy(fake_credential, "scope"), Mock(send=verify_authorization_header)]
@@ -41,6 +49,7 @@ def test_bearer_policy_adds_header():
 
     # Didn't need a new token
     assert fake_credential.get_token.call_count == 1
+
 
 def test_bearer_policy_send():
     """The bearer token policy should invoke the next policy's send method and return the result"""
@@ -86,6 +95,7 @@ def test_bearer_policy_optionally_enforces_https():
 
     def assert_option_popped(request, **kwargs):
         assert "enforce_https" not in kwargs, "BearerTokenCredentialPolicy didn't pop the 'enforce_https' option"
+        return Mock()
 
     credential = Mock(get_token=lambda *_, **__: AccessToken("***", 42))
     pipeline = Pipeline(
@@ -113,8 +123,10 @@ def test_preserves_enforce_https_opt_out():
     class ContextValidator(SansIOHTTPPolicy):
         def on_request(self, request):
             assert "enforce_https" in request.context, "'enforce_https' is not in the request's context"
+            return Mock()
 
-    policies = [BearerTokenCredentialPolicy(credential=Mock(), scope="scope"), ContextValidator()]
+    credential = Mock(get_token=Mock(return_value=AccessToken("***", 42)))
+    policies = [BearerTokenCredentialPolicy(credential, "scope"), ContextValidator()]
     pipeline = Pipeline(transport=Mock(), policies=policies)
 
     pipeline.run(HttpRequest("GET", "http://not.secure"), enforce_https=False)
@@ -127,10 +139,150 @@ def test_context_unmodified_by_default():
         def on_request(self, request):
             assert not any(request.context), "the policy shouldn't add to the request's context"
 
-    policies = [BearerTokenCredentialPolicy(credential=Mock(), scope="scope"), ContextValidator()]
+    credential = Mock(get_token=Mock(return_value=AccessToken("***", 42)))
+    policies = [BearerTokenCredentialPolicy(credential, "scope"), ContextValidator()]
     pipeline = Pipeline(transport=Mock(), policies=policies)
 
     pipeline.run(HttpRequest("GET", "https://secure"))
+
+
+def test_challenge_parsing():
+    challenges = (
+        (  # CAE - insufficient claims
+            'Bearer realm="", authorization_uri="https://login.microsoftonline.com/common/oauth2/authorize", client_id="00000003-0000-0000-c000-000000000000", error="insufficient_claims", claims="eyJhY2Nlc3NfdG9rZW4iOiB7ImZvbyI6ICJiYXIifX0="',
+            {
+                "authorization_uri": "https://login.microsoftonline.com/common/oauth2/authorize",
+                "client_id": "00000003-0000-0000-c000-000000000000",
+                "error": "insufficient_claims",
+                "claims": "eyJhY2Nlc3NfdG9rZW4iOiB7ImZvbyI6ICJiYXIifX0=",
+                "realm": "",
+            },
+        ),
+        (  # CAE - sessions revoked
+            'Bearer authorization_uri="https://login.windows-ppe.net/", error="invalid_token", error_description="User session has been revoked", claims="eyJhY2Nlc3NfdG9rZW4iOnsibmJmIjp7ImVzc2VudGlhbCI6dHJ1ZSwgInZhbHVlIjoiMTYwMzc0MjgwMCJ9fX0="',
+            {
+                "authorization_uri": "https://login.windows-ppe.net/",
+                "error": "invalid_token",
+                "error_description": "User session has been revoked",
+                "claims": "eyJhY2Nlc3NfdG9rZW4iOnsibmJmIjp7ImVzc2VudGlhbCI6dHJ1ZSwgInZhbHVlIjoiMTYwMzc0MjgwMCJ9fX0=",
+            },
+        ),
+        (  # Key Vault
+            'Bearer authorization="https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47", resource="https://vault.azure.net"',
+            {
+                "authorization": "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47",
+                "resource": "https://vault.azure.net",
+            },
+        ),
+        (  # ARM
+            'Bearer authorization_uri="https://login.windows.net/", error="invalid_token", error_description="The authentication failed because of missing \'Authorization\' header."',
+            {
+                "authorization_uri": "https://login.windows.net/",
+                "error": "invalid_token",
+                "error_description": "The authentication failed because of missing 'Authorization' header.",
+            },
+        ),
+    )
+
+    for challenge, expected_parameters in challenges:
+        challenge = _get_challenges(Mock(http_response=Mock(headers={"WWW-Authenticate": challenge})))
+        assert len(challenge) == 1
+        assert challenge[0].scheme == "Bearer"
+        assert challenge[0].parameters == expected_parameters
+
+    for permutation in itertools.permutations(challenge for challenge, _ in challenges):
+        parsed_challenges = _get_challenges(
+            Mock(http_response=Mock(headers={"WWW-Authenticate": ", ".join(permutation)}))
+        )
+        assert len(parsed_challenges) == len(challenges)
+        expected_parameters = [parameters for _, parameters in challenges]
+        for challenge in parsed_challenges:
+            assert challenge.scheme == "Bearer"
+            expected_parameters.remove(challenge.parameters)
+        assert len(expected_parameters) == 0
+
+
+def test_calls_on_challenge():
+    """The policy should call its on_challenge method when it receives an authentication challenge"""
+
+    class TestPolicy(BearerTokenCredentialPolicy):
+        called = False
+
+        def on_challenge(self, challenges):
+            self.__class__.called = True
+            return None
+
+    credential = Mock(get_token=Mock(return_value=AccessToken("***", int(time.time()) + 3600)))
+    policies = [TestPolicy(credential, "scope")]
+    response = Mock(status_code=401, headers={"WWW-Authenticate": 'Basic realm="localhost"'})
+    transport = Mock(send=Mock(return_value=response))
+
+    pipeline = Pipeline(transport=transport, policies=policies)
+    pipeline.run(HttpRequest("GET", "https://localhost"))
+
+    assert TestPolicy.called
+
+
+def test_cannot_complete_challenge():
+    """The policy should return the 401 response when it can't complete its challenge"""
+
+    expected_scope = "scope"
+    expected_token = AccessToken("***", int(time.time()) + 3600)
+    credential = Mock(get_token=Mock(return_value=expected_token))
+    expected_response = Mock(status_code=401, headers={"WWW-Authenticate": 'Basic realm="localhost"'})
+    transport = Mock(send=Mock(return_value=expected_response))
+    policies = [BearerTokenCredentialPolicy(credential, expected_scope)]
+
+    pipeline = Pipeline(transport=transport, policies=policies)
+    response = pipeline.run(HttpRequest("GET", "https://localhost"))
+
+    assert response.http_response is expected_response
+    assert transport.send.call_count == 1
+    credential.get_token.assert_called_once_with(expected_scope)
+
+
+def test_claims_challenge():
+    """The policy should pass claims from an authentication challenge to its credential"""
+
+    first_token = AccessToken("first", int(time.time()) + 3600)
+    second_token = AccessToken("second", int(time.time()) + 3600)
+    tokens = (t for t in (first_token, second_token))
+
+    expected_claims = '{"access_token": {"essential": "true"}'
+    expected_scope = "scope"
+
+    challenge = 'Bearer claims="{}"'.format(base64.b64encode(expected_claims.encode()).decode())
+    responses = (r for r in (Mock(status_code=401, headers={"WWW-Authenticate": challenge}), Mock(status_code=200)))
+
+    def send(request):
+        res = next(responses)
+        if res.status_code == 401:
+            expected_token = first_token.token
+        else:
+            expected_token = second_token.token
+        assert request.headers["Authorization"] == "Bearer " + expected_token
+
+        return res
+
+    def get_token(*scopes, **kwargs):
+        assert scopes == (expected_scope,)
+        return next(tokens)
+
+    credential = Mock(get_token=Mock(wraps=get_token))
+    transport = Mock(send=Mock(wraps=send))
+    policies = [BearerTokenCredentialPolicy(credential, expected_scope)]
+    pipeline = Pipeline(transport=transport, policies=policies)
+
+    response = pipeline.run(HttpRequest("GET", "https://localhost"))
+
+    assert response.http_response.status_code == 200
+    assert transport.send.call_count == 2
+    assert credential.get_token.call_count == 2
+    credential.get_token.assert_called_with(expected_scope, claims_challenge=expected_claims)
+    with pytest.raises(StopIteration):
+        next(tokens)
+    with pytest.raises(StopIteration):
+        next(responses)
 
 
 @pytest.mark.skipif(azure.core.__version__ >= "2", reason="this test applies only to azure-core 1.x")
@@ -153,6 +305,7 @@ def test_key_vault_regression():
     assert not policy._need_new_token
     assert policy._token.token == token
 
+
 def test_azure_key_credential_policy():
     """Tests to see if we can create an AzureKeyCredentialPolicy"""
 
@@ -162,12 +315,13 @@ def test_azure_key_credential_policy():
     def verify_authorization_header(request):
         assert request.headers[key_header] == api_key
 
-    transport=Mock(send=verify_authorization_header)
+    transport = Mock(send=verify_authorization_header)
     credential = AzureKeyCredential(api_key)
     credential_policy = AzureKeyCredentialPolicy(credential=credential, name=key_header)
     pipeline = Pipeline(transport=transport, policies=[credential_policy])
 
     pipeline.run(HttpRequest("GET", "https://test_key_credential"))
+
 
 def test_azure_key_credential_policy_raises():
     """Tests AzureKeyCredential and AzureKeyCredentialPolicy raises with non-string input parameters."""
@@ -179,6 +333,7 @@ def test_azure_key_credential_policy_raises():
     credential = AzureKeyCredential(str(api_key))
     with pytest.raises(TypeError):
         credential_policy = AzureKeyCredentialPolicy(credential=credential, name=key_header)
+
 
 def test_azure_key_credential_updates():
     """Tests AzureKeyCredential updates"""
