@@ -800,6 +800,21 @@ def test_authentication_record_authenticating_tenant():
     assert transport.send.called
 
 
+def test_client_capabilities():
+    """the credential should configure MSAL for capability CP1 (ability to handle claims challenges)"""
+
+    record = AuthenticationRecord("tenant_id", "client_id", "authority", "home_account_id", "username")
+    transport = Mock(send=Mock(side_effect=Exception("this test mocks MSAL, so no request should be sent")))
+    credential = SharedTokenCacheCredential(transport=transport, authentication_record=record, _cache=TokenCache())
+
+    with patch(SharedTokenCacheCredential.__module__ + ".PublicClientApplication") as PublicClientApplication:
+        credential._initialize()
+
+    assert PublicClientApplication.call_count == 1
+    _, kwargs = PublicClientApplication.call_args
+    assert kwargs["client_capabilities"] == ["CP1"]
+
+
 def test_claims_challenge():
     """get_token should pass any claims challenge to MSAL token acquisition APIs"""
 
