@@ -148,6 +148,20 @@ def test_authenticate():
     assert token.token == access_token
 
 
+def test_client_capabilities():
+    """the credential should configure MSAL for capability CP1 (ability to handle claims challenges)"""
+
+    transport = Mock(send=Mock(side_effect=Exception("this test mocks MSAL, so no request should be sent")))
+    credential = UsernamePasswordCredential("client-id", "username", "password", transport=transport)
+
+    with patch("msal.PublicClientApplication") as PublicClientApplication:
+        credential._get_app()
+
+    assert PublicClientApplication.call_count == 1
+    _, kwargs = PublicClientApplication.call_args
+    assert kwargs["client_capabilities"] == ["CP1"]
+
+
 def test_claims_challenge():
     """get_token should pass any claims challenge to MSAL token acquisition APIs"""
 
