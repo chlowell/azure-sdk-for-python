@@ -186,15 +186,13 @@ def test_challenge_parsing():
     )
 
     for challenge, expected_parameters in challenges:
-        challenge = _get_challenges(Mock(http_response=Mock(headers={"WWW-Authenticate": challenge})))
+        challenge = _get_challenges(challenge)
         assert len(challenge) == 1
         assert challenge[0].scheme == "Bearer"
         assert challenge[0].parameters == expected_parameters
 
     for permutation in itertools.permutations(challenge for challenge, _ in challenges):
-        parsed_challenges = _get_challenges(
-            Mock(http_response=Mock(headers={"WWW-Authenticate": ", ".join(permutation)}))
-        )
+        parsed_challenges = _get_challenges(", ".join(permutation))
         assert len(parsed_challenges) == len(challenges)
         expected_parameters = [parameters for _, parameters in challenges]
         for challenge in parsed_challenges:
