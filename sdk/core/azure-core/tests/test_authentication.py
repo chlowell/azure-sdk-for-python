@@ -207,7 +207,7 @@ def test_calls_on_challenge():
     class TestPolicy(BearerTokenCredentialPolicy):
         called = False
 
-        def on_challenge(self, challenges):
+        def on_challenge(self, request, challenges):
             self.__class__.called = True
             return None
 
@@ -282,6 +282,43 @@ def test_claims_challenge():
         next(tokens)
     with pytest.raises(StopIteration):
         next(responses)
+
+
+def test_calls_prior_base_class_methods():
+    """Backcompat requires BearerTokenCredentialPolicy to behave like SansIOHttpPolicy"""
+
+    class TestPolicy(BearerTokenCredentialPolicy):
+        def __init__(self, *args, **kwargs):
+            super(TestPolicy, self).__init__(*args, **kwargs)
+            self.on_exception = Mock(return_value=None)
+            self.on_request = Mock()
+            self.on_response = Mock()
+
+        def send(self, request):
+            self.request = request
+            self.response = super(TestPolicy, self).send(request)
+            return self.response
+
+    credential = Mock(get_token=Mock(return_value=AccessToken("***", int(time.time()) + 3600)))
+    policy = TestPolicy(credential, "scope")
+    transport = Mock(send=Mock(return_value=Mock(status_code=200)))
+
+    pipeline = Pipeline(transport=transport, policies=[policy])
+    pipeline.run(HttpRequest("GET", "https://localhost"))
+
+    policy.on_request.assert_called_once_with(policy.request)
+    policy.on_response.assert_called_once_with(policy.request, policy.response)
+
+    # on_exception should be called when send() raises
+    class TestException(Exception):
+        pass
+
+    credential = Mock(get_token=Mock(side_effect=TestException))
+    policy = TestPolicy(credential, "scope")
+    pipeline = Pipeline(transport=transport, policies=[policy])
+    with pytest.raises(TestException):
+        pipeline.run(HttpRequest("GET", "https://localhost"))
+    policy.on_exception.assert_called_once_with(policy.request)
 
 
 @pytest.mark.skipif(azure.core.__version__ >= "2", reason="this test applies only to azure-core 1.x")
