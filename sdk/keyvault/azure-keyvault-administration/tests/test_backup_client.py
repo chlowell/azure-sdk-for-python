@@ -71,6 +71,41 @@ class BackupClientTests(KeyVaultTestCase):
     @ResourceGroupPreparer(random_name_enabled=True, use_cache=True)
     @StorageAccountPreparer(random_name_enabled=True)
     @BlobContainerPreparer()
+    def test_backup_continuation(self, container_uri, sas_token):
+        backup_client = KeyVaultBackupClient(self.managed_hsm["url"], self.credential)
+        first_poller = backup_client.begin_full_backup(container_uri, sas_token)
+
+        continuation_token = first_poller.continuation_token()
+        rehydrated_poller = backup_client.begin_full_backup("", "", continuation_token=continuation_token)
+
+        rehydrated_result = rehydrated_poller.result()
+        result = first_poller.result()
+
+        assert_operations_equal(result, rehydrated_result)
+        assert_successful_operation(result)
+        assert_successful_operation(rehydrated_result)
+
+    @ResourceGroupPreparer(random_name_enabled=True, use_cache=True)
+    @StorageAccountPreparer(random_name_enabled=True)
+    @BlobContainerPreparer()
+    def test_restore_continuation(self, container_uri, sas_token):
+        return  # TODO
+        backup_client = KeyVaultBackupClient(self.managed_hsm["url"], self.credential)
+        first_poller = backup_client.begin_full_backup(container_uri, sas_token)
+
+        continuation_token = first_poller.continuation_token()
+        rehydrated_poller = backup_client.begin_full_backup("", "", continuation_token=continuation_token)
+
+        rehydrated_result = rehydrated_poller.result()
+        result = first_poller.result()
+
+        assert_operations_equal(result, rehydrated_result)
+        assert_successful_operation(result)
+        assert_successful_operation(rehydrated_result)
+
+    @ResourceGroupPreparer(random_name_enabled=True, use_cache=True)
+    @StorageAccountPreparer(random_name_enabled=True)
+    @BlobContainerPreparer()
     def test_selective_key_restore(self, container_uri, sas_token):
         # create a key to selectively restore
         key_client = KeyClient(self.managed_hsm["url"], self.credential)
@@ -142,6 +177,10 @@ def assert_successful_operation(operation):
     assert operation.status == "Succeeded"
     assert isinstance(operation.end_time, datetime)
     assert operation.start_time < operation.end_time
+
+
+def assert_operations_equal(a, b):
+    pass
 
 
 @pytest.mark.parametrize(

@@ -4,16 +4,17 @@
 # ------------------------------------
 from typing import TYPE_CHECKING
 
+from azure.core.polling import LROPoller
 from azure.core.polling.base_polling import LROBasePolling
 
 from ._models import BackupOperation, RestoreOperation, SelectiveKeyRestoreOperation
-from ._internal import KeyVaultClientBase, parse_folder_url
-from ._internal.polling import KeyVaultBackupClientPolling
+from ._internal import KeyVaultClientBase, parse_blob_storage_url
+from ._internal.polling import KeyVaultBackupClientPolling, BackupClientLRO, PollingMethod
+
 
 if TYPE_CHECKING:
     # pylint:disable=unused-import
     from typing import Any
-    from azure.core.polling import LROPoller
 
 
 class KeyVaultBackupClient(KeyVaultClientBase):
@@ -37,13 +38,28 @@ class KeyVaultBackupClient(KeyVaultClientBase):
         :rtype: ~azure.core.polling.LROPoller[BackupOperation]
         """
         polling_interval = kwargs.pop("_polling_interval", 5)
+
+        continuation_token = kwargs.pop("continuation_token", None)
+        if continuation_token:
+            # the lambda causes the client to return a PipelineResponse
+            initial_response = self._client.full_backup_status(
+                vault_base_url=self.vault_url, job_id=continuation_token, cls=lambda response, *_: response, **kwargs
+            )
+            return LROPoller(
+                client=self._client._client,
+                initial_response=initial_response,
+                deserialization_callback=BackupOperation._wrap_generated,
+                polling_method=PollingMethod(
+                    lro_algorithms=[BackupClientLRO(initial_response)], timeout=polling_interval, **kwargs
+                ),
+            )
+
         sas_parameter = self._models.SASTokenParameter(storage_resource_uri=blob_storage_url, token=sas_token)
         return self._client.begin_full_backup(
             vault_base_url=self._vault_url,
             azure_storage_blob_container_uri=sas_parameter,
             cls=BackupOperation._wrap_generated,
-            continuation_token=kwargs.pop("continuation_token", None),
-            polling=LROBasePolling(lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs),
+            polling=PollingMethod(lro_algorithms=[KeyVaultBackupClientPolling()], timeout=polling_interval, **kwargs),
             **kwargs
         )
 
