@@ -26,6 +26,10 @@ class CertificateCredential(CertificateCredentialBase, AsyncContextManager):
     :keyword password: The certificate's password. If a unicode string, it will be encoded as UTF-8. If the certificate
           requires a different encoding, pass appropriately encoded bytes instead.
     :paramtype password: str or bytes
+    :keyword token_cache: token cache the credential should use. Defaults to an in memory
+          cache not shared with other credential instances. To enable persistent caching, provide a
+          :class:`~azure.identity.PersistentTokenCache` instance.
+    :paramtype token_cache: ~azure.identity.TokenCache or ~azure.identity.PersistentTokenCache
     """
 
     async def __aenter__(self):
