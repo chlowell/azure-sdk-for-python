@@ -17,9 +17,8 @@ protocol again.
 import copy
 import time
 
-from azure.core.exceptions import ServiceRequestError
 from azure.core.pipeline import PipelineContext, PipelineRequest
-from azure.core.pipeline.policies import HTTPPolicy
+from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline.transport import HttpRequest
 
 from .http_challenge import HttpChallenge
@@ -86,55 +85,32 @@ class ChallengeAuthPolicyBase(object):
         return not self._token or self._token.expires_on - time.time() < 300
 
 
-class ChallengeAuthPolicy(ChallengeAuthPolicyBase, HTTPPolicy):
+class ChallengeAuthPolicy(BearerTokenCredentialPolicy):
     """policy for handling HTTP authentication challenges"""
 
-    def __init__(self, credential, **kwargs):
-        # type: (TokenCredential, **Any) -> None
-        self._credential = credential
-        super(ChallengeAuthPolicy, self).__init__(**kwargs)
+    def on_before_request(self, request):
+        # type: (PipelineRequest) -> None
+        if self._scopes:
+            super(ChallengeAuthPolicy, self).on_before_request(request)
+        elif request.http_request.body:
+            # discover the correct scope by eliciting an authentication challenge from Key Vault
+            request.context["original_data"] = request.http_request.body
+            request.http_request.set_json_body(None)
+            request.http_request.headers["Content-Length"] = "0"
 
-    def send(self, request):
-        # type: (PipelineRequest) -> HttpResponse
-        _enforce_tls(request)
-
-        challenge = ChallengeCache.get_challenge_for_url(request.http_request.url)
-        if not challenge:
-            challenge_request = _get_challenge_request(request)
-            challenger = self.next.send(challenge_request)
-            try:
-                challenge = _update_challenge(request, challenger)
-            except ValueError:
-                # didn't receive the expected challenge -> nothing more this policy can do
-                return challenger
-
-        self._handle_challenge(request, challenge)
-        response = self.next.send(request)
-
-        if response.http_response.status_code == 401:
-            # any cached token must be invalid
-            self._token = None
-
-            # cached challenge could be outdated; maybe this response has a new one?
-            try:
-                challenge = _update_challenge(request, response)
-            except ValueError:
-                # 401 with no legible challenge -> nothing more this policy can do
-                return response
-
-            self._handle_challenge(request, challenge)
-            response = self.next.send(request)
-
-        return response
-
-    def _handle_challenge(self, request, challenge):
-        # type: (PipelineRequest, HttpChallenge) -> None
-        """authenticate according to challenge, add Authorization header to request"""
-
-        if self._need_new_token:
-            # azure-identity credentials require an AADv2 scope but the challenge may specify an AADv1 resource
+    def on_challenge(self, request, www_authenticate):
+        # type: (PipelineRequest, str) -> bool
+        try:
+            challenge = HttpChallenge(request.http_request.url, www_authenticate)
             scope = challenge.get_scope() or challenge.get_resource() + "/.default"
-            self._token = self._credential.get_token(scope)
+            self._scopes = (scope,)
+        except ValueError:
+            # maybe super can handle this unexpected challenge
+            return super(ChallengeAuthPolicy, self).on_challenge(request, www_authenticate)
 
-        # ignore mypy's warning because although self._token is Optional, get_token raises when it fails to get a token
-        request.http_request.headers["Authorization"] = "Bearer {}".format(self._token.token)  # type: ignore
+        text = request.context.pop("original_data", None)
+        request.http_request.set_text_body(text)  # no-op when text is None
+
+        self._token = self._credential.get_token(*self._scopes)
+        request.http_request.headers["Authorization"] = "Bearer " + self._token.token
+        return True
