@@ -242,11 +242,7 @@ def test_token_expiration():
 
 @empty_challenge_cache
 def test_preserves_options_and_headers():
-    """After a challenge, the original request should be sent with its options and headers preserved.
-
-    If a policy mutates the options or headers of the challenge (unauthorized) request, the options of the service
-    request should be present when it is sent with authorization.
-    """
+    """the policy shouldn't remove request options, or headers added by previous policies"""
 
     url = get_random_url()
     token = "**"
@@ -273,12 +269,11 @@ def test_preserves_options_and_headers():
 
     # ensure the mock sans I/O policies were called
     for policy in policies:
-        if hasattr(policy, "on_request"):
+        if isinstance(policy, Mock):
             assert policy.on_request.called, "mock policy wasn't invoked"
 
 
 def get_policies_for_request_mutation_test(challenge_policy):
-    # create mock policies to add, remove, and verify an option and header
     key = "foo"
     value = "bar"
     do_not_handle = lambda _: False
@@ -290,26 +285,11 @@ def get_policies_for_request_mutation_test(challenge_policy):
 
     adder = Mock(spec_set=SansIOHTTPPolicy, on_request=Mock(wraps=add), on_exception=do_not_handle)
 
-    def remove(request):
-        # remove expected header and all options of unauthorized (challenge) requests
-        if not request.http_request.headers.get("Authorization"):
-            request.http_request.headers.pop(key, None)
-            request.context.options = {}
-
-    remover = Mock(spec_set=SansIOHTTPPolicy, on_request=Mock(wraps=remove), on_exception=do_not_handle)
-
     def verify(request):
         # authorized (non-challenge) requests should have the expected option and header
-        if request.http_request.headers.get("Authorization"):
-            assert request.context.options.get(key) == value, "request option not preserved across challenge"
-            assert request.http_request.headers.get(key) == value, "headers not preserved across challenge"
+        assert request.context.options.get(key) == value, "request option not preserved across challenge"
+        assert request.http_request.headers.get(key) == value, "headers not preserved across challenge"
 
     verifier = Mock(spec=SansIOHTTPPolicy, on_request=Mock(wraps=verify))
 
-    # Mutating the challenge request shouldn't affect the authorized request.
-    # This is the pipeline flow:
-    #  1. add option and header
-    #  2. challenge auth
-    #  3. remove option, header from unauthorized request
-    #  4. verify option, header on authorized request
-    return [adder, challenge_policy, remover, verifier]
+    return [adder, challenge_policy, verifier]
