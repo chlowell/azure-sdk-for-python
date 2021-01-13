@@ -4,12 +4,11 @@
 # ------------------------------------
 import abc
 
-from msal import TokenCache
 import six
 
 from . import AadClientCertificate
-from .persistent_cache import load_service_principal_cache
 from .._internal import validate_tenant_id
+from .._token_cache import TokenCache
 
 try:
     ABC = abc.ABC
@@ -46,14 +45,8 @@ class CertificateCredentialBase(ABC):
 
         self._certificate = AadClientCertificate(pem_bytes, password=password)
 
-        enable_persistent_cache = kwargs.pop("enable_persistent_cache", False)
-        if enable_persistent_cache:
-            allow_unencrypted = kwargs.pop("allow_unencrypted_cache", False)
-            cache = load_service_principal_cache(allow_unencrypted)
-        else:
-            cache = TokenCache()
-
-        self._client = self._get_auth_client(tenant_id, client_id, cache=cache, **kwargs)
+        cache = kwargs.pop("token_cache", None) or TokenCache()  # type: TokenCache
+        self._client = self._get_auth_client(tenant_id, client_id, cache=cache._cache, **kwargs)
         self._client_id = client_id
 
     @abc.abstractmethod
