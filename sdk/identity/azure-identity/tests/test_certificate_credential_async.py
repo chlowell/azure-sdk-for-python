@@ -15,7 +15,7 @@ import pytest
 
 from helpers import build_aad_response, urlsafeb64_decode, mock_response, Request
 from helpers_async import async_validating_transport, AsyncMockTransport
-from test_certificate_credential import BOTH_CERTS, CERT_PATH, validate_jwt
+from test_certificate_credential import ALL_CERTS, PEM_CERT_PATH, validate_jwt
 
 
 def test_tenant_id_validation():
@@ -23,19 +23,19 @@ def test_tenant_id_validation():
 
     valid_ids = {"c878a2ab-8ef4-413b-83a0-199afb84d7fb", "contoso.onmicrosoft.com", "organizations", "common"}
     for tenant in valid_ids:
-        CertificateCredential(tenant, "client-id", CERT_PATH)
+        CertificateCredential(tenant, "client-id", PEM_CERT_PATH)
 
     invalid_ids = {"", "my tenant", "my_tenant", "/", "\\", '"', "'"}
     for tenant in invalid_ids:
         with pytest.raises(ValueError):
-            CertificateCredential(tenant, "client-id", CERT_PATH)
+            CertificateCredential(tenant, "client-id", PEM_CERT_PATH)
 
 
 @pytest.mark.asyncio
 async def test_no_scopes():
     """The credential should raise ValueError when get_token is called with no scopes"""
 
-    credential = CertificateCredential("tenant-id", "client-id", CERT_PATH)
+    credential = CertificateCredential("tenant-id", "client-id", PEM_CERT_PATH)
     with pytest.raises(ValueError):
         await credential.get_token()
 
@@ -43,7 +43,7 @@ async def test_no_scopes():
 @pytest.mark.asyncio
 async def test_close():
     transport = AsyncMockTransport()
-    credential = CertificateCredential("tenant-id", "client-id", CERT_PATH, transport=transport)
+    credential = CertificateCredential("tenant-id", "client-id", PEM_CERT_PATH, transport=transport)
 
     await credential.close()
 
@@ -53,7 +53,7 @@ async def test_close():
 @pytest.mark.asyncio
 async def test_context_manager():
     transport = AsyncMockTransport()
-    credential = CertificateCredential("tenant-id", "client-id", CERT_PATH, transport=transport)
+    credential = CertificateCredential("tenant-id", "client-id", PEM_CERT_PATH, transport=transport)
 
     async with credential:
         assert transport.__aenter__.call_count == 1
@@ -70,7 +70,7 @@ async def test_policies_configurable():
         return mock_response(json_payload=build_aad_response(access_token="**"))
 
     credential = CertificateCredential(
-        "tenant-id", "client-id", CERT_PATH, policies=[ContentDecodePolicy(), policy], transport=Mock(send=send)
+        "tenant-id", "client-id", PEM_CERT_PATH, policies=[ContentDecodePolicy(), policy], transport=Mock(send=send)
     )
 
     await credential.get_token("scope")
@@ -85,14 +85,14 @@ async def test_user_agent():
         responses=[mock_response(json_payload=build_aad_response(access_token="**"))],
     )
 
-    credential = CertificateCredential("tenant-id", "client-id", CERT_PATH, transport=transport)
+    credential = CertificateCredential("tenant-id", "client-id", PEM_CERT_PATH, transport=transport)
 
     await credential.get_token("scope")
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("authority", ("localhost", "https://localhost"))
-@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+@pytest.mark.parametrize("cert_path,cert_password", ALL_CERTS)
 async def test_request_url(cert_path, cert_password, authority):
     """the credential should accept an authority, with or without scheme, as an argument or environment variable"""
 
@@ -124,7 +124,7 @@ async def test_request_url(cert_path, cert_password, authority):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+@pytest.mark.parametrize("cert_path,cert_password", ALL_CERTS)
 async def test_request_body(cert_path, cert_password):
     access_token = "***"
     authority = "authority.com"
@@ -137,7 +137,7 @@ async def test_request_body(cert_path, cert_password):
         assert request.body["scope"] == expected_scope
 
         with open(cert_path, "rb") as cert_file:
-            validate_jwt(request, client_id, cert_file.read())
+            validate_jwt(request, client_id, cert_file.read(), cert_password)
 
         return mock_response(json_payload={"token_type": "Bearer", "expires_in": 42, "access_token": access_token})
 
@@ -149,7 +149,7 @@ async def test_request_body(cert_path, cert_password):
     assert token.token == access_token
 
 
-@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+@pytest.mark.parametrize("cert_path,cert_password", ALL_CERTS)
 def test_enable_persistent_cache(cert_path, cert_password):
     """the credential should use the persistent cache only when given enable_persistent_cache=True"""
 
@@ -181,7 +181,7 @@ def test_enable_persistent_cache(cert_path, cert_password):
 
 @patch("azure.identity._internal.persistent_cache.sys.platform", "linux2")
 @patch("azure.identity._internal.persistent_cache.msal_extensions")
-@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+@pytest.mark.parametrize("cert_path,cert_password", ALL_CERTS)
 def test_persistent_cache_linux(mock_extensions, cert_path, cert_password):
     """The credential should use an unencrypted cache when encryption is unavailable and the user explicitly opts in.
 
@@ -211,7 +211,7 @@ def test_persistent_cache_linux(mock_extensions, cert_path, cert_password):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("cert_path,cert_password", BOTH_CERTS)
+@pytest.mark.parametrize("cert_path,cert_password", ALL_CERTS)
 async def test_persistent_cache_multiple_clients(cert_path, cert_password):
     """the credential shouldn't use tokens issued to other service principals"""
 
@@ -246,3 +246,18 @@ async def test_persistent_cache_multiple_clients(cert_path, cert_password):
     token_b = await credential_b.get_token(scope)
     assert token_b.token == access_token_b
     assert transport_b.send.call_count == 1
+
+
+def test_requires_certificate():
+    """the credential should raise ValueError when not given a certificate"""
+
+    with pytest.raises(ValueError):
+        CertificateCredential("tenant", "client-id")
+    with pytest.raises(ValueError):
+        CertificateCredential("tenant", "client-id", certificate_path=None)
+    with pytest.raises(ValueError):
+        CertificateCredential("tenant", "client-id", certificate_path="")
+    with pytest.raises(ValueError):
+        CertificateCredential("tenant", "client-id", certificate_bytes=None)
+    with pytest.raises(ValueError):
+        CertificateCredential("tenant", "client-id", certificate_path="", certificate_bytes=None)
