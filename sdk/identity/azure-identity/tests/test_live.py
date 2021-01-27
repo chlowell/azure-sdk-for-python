@@ -24,23 +24,29 @@ def get_token(credential):
     assert token.expires_on
 
 
-def test_certificate_credential(live_certificate):
+@pytest.mark.parametrize("certificate_fixture", ("live_pem_certificate", "live_pfx_certificate"))
+def test_certificate_credential(certificate_fixture, request):
+    cert = request.getfixturevalue(certificate_fixture)
+
+    tenant_id = cert["tenant_id"]
+    client_id = cert["client_id"]
+
+    credential = CertificateCredential(tenant_id, client_id, cert["cert_path"])
+    get_token(credential)
+
+    credential = CertificateCredential(tenant_id, client_id, cert["cert_with_password_path"], password=cert["password"])
+    get_token(credential)
+
+    credential = CertificateCredential(tenant_id, client_id, certificate_bytes=cert["cert_bytes"])
+    get_token(credential)
+
     credential = CertificateCredential(
-        live_certificate["tenant_id"], live_certificate["client_id"], live_certificate["cert_path"]
+        tenant_id, client_id, certificate_bytes=cert["cert_with_password_bytes"], password=cert["password"],
     )
     get_token(credential)
 
 
-def test_certificate_credential_with_password(live_certificate_with_password):
-    credential = CertificateCredential(
-        live_certificate_with_password["tenant_id"],
-        live_certificate_with_password["client_id"],
-        live_certificate_with_password["cert_path"],
-        password=live_certificate_with_password["password"],
-    )
-    get_token(credential)
-
-
+@pytest.mark.skip("...")
 def test_client_secret_credential(live_service_principal):
     credential = ClientSecretCredential(
         live_service_principal["tenant_id"],
@@ -50,6 +56,7 @@ def test_client_secret_credential(live_service_principal):
     get_token(credential)
 
 
+@pytest.mark.skip("...")
 def test_default_credential(live_service_principal):
     credential = DefaultAzureCredential()
     get_token(credential)
